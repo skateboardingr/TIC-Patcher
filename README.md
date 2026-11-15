@@ -17,9 +17,9 @@ Early research. Working so far:
 - Table layouts taken from FFTPatcher, starting with jobs, with a reader/writer for their fields (numbers and flag sets).
 - **TICScan**, a research tool that finds a table in a running game's memory (read-only) by comparing it with a reference copy of the original data. Rebalanced values and grown records are tolerated.
 - **Confirmed in the real game:** The Ivalice Chronicles keeps the War of the Lions job table layout, and changing it in memory changes gameplay (Ramza's Move 4 → 6). See [docs/findings.md](docs/findings.md).
-- **TIC Loader 0.1** (built, not yet tested in the game): when the game starts, reads `TIC/tables.json` from every enabled Reloaded-II mod, merges them in load order (later mods win field by field), finds the job table by its fingerprint and writes only the bytes that change.
+- **TIC Loader 0.1, working in the game:** when the game starts, reads `TIC/tables.json` from every enabled Reloaded-II mod, merges them in load order (later mods win field by field), finds the job table by its fingerprint and writes only the bytes that change.
 
-Next: test TIC Loader in the game, then more tables (abilities, items, skill sets) and the editor.
+Next: more tables (abilities, items, skill sets) and the editor, which will also enable mods and launch the game so players rarely need Reloaded-II's own window.
 
 ## Making a mod
 

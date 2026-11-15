@@ -9,6 +9,7 @@ Our own measurements on *FINAL FANTASY TACTICS - The Ivalice Chronicles* (Steam,
 - **Match with FFTPatcher's PSP defaults:** 99.9% on the stable fields (skill set, Move, Jump, C-Evade, elements, monster graphics), found by `TICScan` (2026-11-15).
 - **Remaster differences seen so far:** generic and Ramza jobs gained equipment types, e.g. Squire and Chemist can also equip hair adornments and perfume.
 - **Live use confirmed:** setting Move to 6 on Ramza's jobs (0x01–0x03) in memory made Ramza's status screen show Move 6 (2026-11-15, chapter 1 save, Enhanced).
+- **TIC Loader confirmed:** launched through Reloaded-II with the example mod, the loader found the table by fingerprint at the same address the moment the game started (no waiting needed) and Ramza showed Move 6. Log: `Jobs: 3 field(s) applied, 3 byte(s) changed at module +0x785E30` (2026-11-15).
 
 ## How it was found
 
