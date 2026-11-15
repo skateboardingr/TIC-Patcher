@@ -6,7 +6,7 @@ TIC Patcher is an independent, open-source editor and mod loader for *FINAL FANT
 It has two parts:
 
 - **TIC Patcher**: the editor. Mods are saved in TIC Patcher's own format, containing only the values you changed.
-- **TIC Loader** (planned): a [Reloaded-II](https://github.com/Reloaded-Project/Reloaded-II) mod that applies those edits while the game runs, merging several mods, and later supports replacing data files and expanding tables (new jobs, abilities and equipment).
+- **TIC Loader**: a [Reloaded-II](https://github.com/Reloaded-Project/Reloaded-II) mod that applies those edits while the game runs, merging several mods, and later supports replacing data files and expanding tables (new jobs, abilities and equipment).
 
 **No game files are modified or shipped**, and the game's DRM is left alone: edits are applied in memory at runtime.
 
@@ -17,8 +17,24 @@ Early research. Working so far:
 - Table layouts taken from FFTPatcher, starting with jobs, with a reader/writer for their fields (numbers and flag sets).
 - **TICScan**, a research tool that finds a table in a running game's memory (read-only) by comparing it with a reference copy of the original data. Rebalanced values and grown records are tolerated.
 - **Confirmed in the real game:** The Ivalice Chronicles keeps the War of the Lions job table layout, and changing it in memory changes gameplay (Ramza's Move 4 → 6). See [docs/findings.md](docs/findings.md).
+- **TIC Loader 0.1** (built, not yet tested in the game): when the game starts, reads `TIC/tables.json` from every enabled Reloaded-II mod, merges them in load order (later mods win field by field), finds the job table by its fingerprint and writes only the bytes that change.
 
-Next: TIC Loader's first version, a Reloaded-II mod that applies table edits from mod files when the game starts.
+Next: test TIC Loader in the game, then more tables (abilities, items, skill sets) and the editor.
+
+## Making a mod
+
+A TIC mod is an ordinary Reloaded-II mod folder with no code, depending on `tic.loader`, plus a `TIC/tables.json` listing only the values it changes:
+
+```jsonc
+{
+  "Jobs": {
+    "0x01": { "Move": 6 },
+    "0x4A": { "Equipment": "Knife, Sword, Hat, Clothing" }
+  }
+}
+```
+
+Field names and flag names are the ones in [Jobs.cs](src/TICPatcher.Core/Tables/Schemas/Jobs.cs). A mistake (unknown field, value out of range) is reported in Reloaded-II's log and that mod is skipped; the others still load. See [examples/tic.example.ramzamove](examples/tic.example.ramzamove).
 
 ## Sources
 
@@ -40,7 +56,10 @@ Also built with [Reloaded-II](https://github.com/Reloaded-Project/Reloaded-II) b
 
 ```
 dotnet test
+dotnet build src/TICLoader -c Release
 ```
+
+The loader builds to `src/TICLoader/bin/Release/tic.loader`; copy that folder into Reloaded-II's `Mods` folder.
 
 The tests use generated data only.
 

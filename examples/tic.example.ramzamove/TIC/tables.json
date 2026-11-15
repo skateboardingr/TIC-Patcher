@@ -1,0 +1,8 @@
+// Record ids are hex ("0x01") or decimal; only the fields you change are listed.
+{
+  "Jobs": {
+    "0x01": { "Move": 6 },
+    "0x02": { "Move": 6 },
+    "0x03": { "Move": 6 }
+  }
+}

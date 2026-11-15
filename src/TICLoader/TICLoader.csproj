@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A Reloaded-II mod. Build output is a ready-to-copy mod folder:
+       bin/<Configuration>/tic.loader goes into Reloaded-II's Mods folder. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <AssemblyName>tic.loader</AssemblyName>
+    <RootNamespace>TICPatcher.Loader</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <OutputPath>bin/$(Configuration)/tic.loader</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reloaded-II supplies the interfaces at runtime. -->
+    <PackageReference Include="Reloaded.Mod.Interfaces" Version="2.4.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TICPatcher.Core/TICPatcher.Core.csproj" />
+  </ItemGroup>
+
+</Project>
