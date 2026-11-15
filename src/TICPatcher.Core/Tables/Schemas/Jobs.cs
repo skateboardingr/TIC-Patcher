@@ -2,12 +2,11 @@ namespace TICPatcher.Core.Tables.Schemas;
 
 /// <summary>
 /// The job table, in its War of the Lions (PSP) layout: 169 jobs of 49 bytes.
-/// Whether The Ivalice Chronicles keeps this layout is what the table locator
-/// finds out.
+/// The Ivalice Chronicles keeps this layout (see docs/findings.md).
 ///
-/// Source: FFTPatcher (GPL-3.0, Joe Davidson / Glain), Datatypes/Job/Job.cs,
-/// Datatypes/Job/Equipment.cs, Datatypes/Status/Statuses.cs, Datatypes/Elements.cs.
-/// Field names follow FFTPatcher's.
+/// Source: FFTPatcher (https://github.com/Glain/FFTPatcher, GPL-3.0) by
+/// Joe Davidson and Glain: Datatypes/Job/Job.cs, Datatypes/Job/Equipment.cs,
+/// Datatypes/Status/Statuses.cs, Datatypes/Elements.cs. Field names follow FFTPatcher's.
 /// </summary>
 public static class Jobs
 {
