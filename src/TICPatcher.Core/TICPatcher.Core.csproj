@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Game data model: vanilla tables from the installed FFTIVC mod loader,
+       edits, and export as a Reloaded-II mod. No UI dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>TICPatcher.Core</RootNamespace>
+  </PropertyGroup>
+</Project>

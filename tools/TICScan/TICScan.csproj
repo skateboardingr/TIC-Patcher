@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Research tool: finds game tables in a running game's memory (read-only). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/TICPatcher.Core/TICPatcher.Core.csproj" />
+  </ItemGroup>
+</Project>
