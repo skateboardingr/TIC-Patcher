@@ -40,6 +40,12 @@ Jobs, abilities, skill sets, items, statuses, shops and more can be edited; [doc
 
 Table layouts come from FFTPatcher (GPL-3.0, Joe Davidson / Glain), plus our own analysis of the running game. Each schema names its source.
 
+## How this is made: AI-assisted
+
+TIC Patcher is developed with heavy use of AI. Most of the code, the research into the game's memory and code, and the documentation were written by Claude, Anthropic's AI assistant, working under the direction of the project's maintainer, who decides what to build and tests the results in the real game. Commits made with AI help say so in a `Co-Authored-By: Claude` line.
+
+Every finding about the game is checked against the game itself, and the docs say what is confirmed in play and what is only "likely". The projects TIC Patcher builds on, and their licenses, are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); none of them restricted AI use in the versions used.
+
 ## Credits
 
 TIC Patcher stands on the shoulders of **[FFTPatcher](https://github.com/Glain/FFTPatcher)**, the editor that made *Final Fantasy Tactics* modding what it is:
