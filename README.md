@@ -65,4 +65,4 @@ The tests use generated data only.
 
 ## License
 
-GPL-3.0-or-later, the same as [FFTPatcher](https://github.com/Glain/FFTPatcher). TIC Patcher is a fan project, not affiliated with Square Enix.
+GPL-3.0-or-later, the same as [FFTPatcher](https://github.com/Glain/FFTPatcher). Third-party licenses and the exact FFTPatcher version used are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). TIC Patcher is a fan project, not affiliated with Square Enix.
