@@ -30,13 +30,13 @@ Record layouts and names follow FFTPatcher (Glain, Joe Davidson); see [findings.
 | Items, common | +0x80EA90 | 256 × 12 | 99.8% | |
 | Items, weapon/armor/etc. data | +0x80F690 | 1290 bytes | 100% | right after the common data, as in the PSP file |
 | Inflict statuses | +0x80FBA0 | 128 × 6 | 100% | |
-| **Item attributes** | +0x80FEA0 | **0x55** × **26** | 100% of the first 25 | PSP records are 25 bytes; byte 25 is new (JP Boost). 0x50-0x54 are new: the bonus items' attributes |
-| **Bonus items** | +0x680510 | 5 × 12 | — | the remaster's preorder/DLC items, ids probably 0x100-0x104 |
-| Bonus weapons | +0x680500 | 2 × 8 | — | weapon data for the two bonus swords |
+| **Item attributes** | +0x80FEA0 | **0x55** × **26** | 100% of the first 25 | PSP records are 25 bytes; byte 25 is new (JP Boost). 0x50-0x54 are new: the extra items' attributes |
+| **Extra items** | +0x680510 | 5 × 12 | — | items the remaster added (Materia Blade+, the Akademy set, Ring of Aptitude), ids probably 0x100-0x104 |
+| Extra weapons | +0x680500 | 2 × 8 | — | weapon data for the two extra swords |
 
 ## Names in tables.json
 
-`Jobs`, `JobRequirements`, `SkillSets` (0x00-0xAF), `SkillSetsExtra` (0xE0-0xE2), `MonsterSkills` (0xB0-0xDF), `ActionMenus`, `Abilities` (common data, 0x000-0x1FF), `ActionAbilities` (0x000-0x16F), `ThrowAbilities`, `JumpAbilities`, `ChargeAbilities`, `AbilityEffects`, `AbilityAnimations`, `Items` (0x00-0xFF), `Weapons`, `Shields`, `Armor`, `Accessories`, `ChemistItems`, `ItemAttributes` (0x00-0x54), `BonusItems` and `BonusWeapons` (0x100-), `ShopInventories`, `StatusAttributes`, `InflictStatuses`.
+`Jobs`, `JobRequirements`, `SkillSets` (0x00-0xAF), `SkillSetsExtra` (0xE0-0xE2), `MonsterSkills` (0xB0-0xDF), `ActionMenus`, `Abilities` (common data, 0x000-0x1FF), `ActionAbilities` (0x000-0x16F), `ThrowAbilities`, `JumpAbilities`, `ChargeAbilities`, `AbilityEffects`, `AbilityAnimations`, `Items` (0x00-0xFF), `Weapons`, `Shields`, `Armor`, `Accessories`, `ChemistItems`, `ItemAttributes` (0x00-0x54), `ExtraItems` and `ExtraWeapons` (0x100-), `ShopInventories`, `StatusAttributes`, `InflictStatuses`.
 
 Record ids are the game's own: armor starts at 0x90, charge abilities at 0x196 and so on. Fields are listed in `src/TICPatcher.Core/Tables/Schemas`. Check a table against a memory copy with `TICScan --image <file> <table> <id>...`.
 

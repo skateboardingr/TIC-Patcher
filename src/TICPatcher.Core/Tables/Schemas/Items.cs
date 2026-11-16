@@ -95,12 +95,14 @@ public static class Items
         Source: "FFTPatcher Datatypes/Items/ItemAttributes.cs; record size measured in TIC");
 
     /// <summary>
-    /// The remaster's bonus items (preorder/DLC): five items stored apart from
-    /// the main 256, using item attributes 0x50-0x54. Their ids are probably
+    /// Items the remaster added: five items stored apart from the main 256,
+    /// using item attributes 0x50-0x54. Four are bonus items (the Akademy set
+    /// and the Ring of Aptitude); the Materia Blade+ is found with Move-Find
+    /// at the top of the volcano. Their ids are probably
     /// 0x100-0x104 (a list of item-id boundaries next to them ends at 0x100).
     /// Names as the game shows them, where known.
     /// </summary>
-    public static readonly IReadOnlyDictionary<int, string> BonusNames = new Dictionary<int, string>
+    public static readonly IReadOnlyDictionary<int, string> ExtraNames = new Dictionary<int, string>
     {
         [0x100] = "Materia Blade+",
         [0x101] = "Akademy Blade",
@@ -109,18 +111,18 @@ public static class Items
         [0x104] = "Ring of Aptitude",
     };
 
-    public static readonly TableSchema Bonus = Common with
+    public static readonly TableSchema Extra = Common with
     {
-        Name = "BonusItems", RecordCount = 5, FirstId = 0x100, RecordNames = null,
-        RecordName = id => BonusNames.GetValueOrDefault(id),
+        Name = "ExtraItems", RecordCount = 5, FirstId = 0x100, RecordNames = null,
+        RecordName = id => ExtraNames.GetValueOrDefault(id),
         Source = "Found in TIC by its attribute ids; layout as FFTPatcher Datatypes/Items/Item.cs",
     };
 
-    /// <summary>Weapon data for the two bonus swords (0x101 is the Akademy Blade), stored just before <see cref="Bonus"/>.</summary>
-    public static readonly TableSchema BonusWeapons = Weapons with
+    /// <summary>Weapon data for the two extra swords (Materia Blade+, Akademy Blade), stored just before <see cref="Extra"/>.</summary>
+    public static readonly TableSchema ExtraWeapons = Weapons with
     {
-        Name = "BonusWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = null,
-        Source = "Found in TIC next to the bonus items; layout as FFTPatcher Datatypes/Items/Weapon.cs",
+        Name = "ExtraWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = null,
+        Source = "Found in TIC next to the extra items; layout as FFTPatcher Datatypes/Items/Weapon.cs",
     };
 
     /// <summary>Which shops sell each item: a big-endian 16-bit set, Lesalia = 0x8000.</summary>

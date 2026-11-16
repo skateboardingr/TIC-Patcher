@@ -22,7 +22,7 @@ public sealed class MainWindow : Window
         ("Skill Sets", [SkillSets.Main, SkillSets.Extra, SkillSets.ActionMenus]),
         ("Monster Skills", [SkillSets.MonsterSkills]),
         ("Abilities", [Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge, Abilities.Effects, Abilities.Animations]),
-        ("Items", [Items.Common, Items.Weapons, Items.Shields, Items.Armor, Items.Accessories, Items.ChemistItems, Items.Bonus, Items.BonusWeapons]),
+        ("Items", [Items.Common, Items.Weapons, Items.Shields, Items.Armor, Items.Accessories, Items.ChemistItems, Items.Extra, Items.ExtraWeapons]),
         ("Item Attributes", [Items.Attributes]),
         ("Shops", [Items.ShopInventories]),
         ("Statuses", [Statuses.Attributes, Statuses.Inflict]),

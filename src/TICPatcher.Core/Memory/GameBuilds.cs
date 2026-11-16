@@ -38,8 +38,8 @@ public static class GameBuilds
             [Items.ChemistItems.Name] = 0x80EA90 + 0x10E0,
             [Statuses.Inflict.Name] = 0x80FBA0,
             [Items.Attributes.Name] = 0x80FEA0,
-            [Items.BonusWeapons.Name] = 0x680500,
-            [Items.Bonus.Name] = 0x680510,
+            [Items.ExtraWeapons.Name] = 0x680500,
+            [Items.Extra.Name] = 0x680510,
         }),
     ];
 
