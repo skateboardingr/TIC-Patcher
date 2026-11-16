@@ -11,7 +11,7 @@ namespace TICPatcher.Core.Tables.Schemas;
 /// A flag named "Not..." is stored inverted: FFTPatcher shows the opposite
 /// of the bit (e.g. NotTargetSelf set = "Target self" unticked).
 /// The Ivalice Chronicles' action ability records are 20 bytes, not 14:
-/// bytes 14-19 are new and not yet understood (see docs/tables.md).
+/// bytes 14-19 (New14-New19) are new and not yet understood (see docs/unknowns.md).
 /// </summary>
 public static class Abilities
 {
@@ -55,6 +55,12 @@ public static class Abilities
             FieldDef.U8("InflictStatus", 11),
             FieldDef.U8("Ticks", 12),
             FieldDef.U8("MPCost", 13),
+            FieldDef.U8("New14", 14),
+            FieldDef.U8("New15", 15),
+            FieldDef.U8("New16", 16),
+            FieldDef.U8("New17", 17),
+            FieldDef.U8("New18", 18),
+            FieldDef.U8("New19", 19),
         ],
         Source: "FFTPatcher Datatypes/Abilities/AbilityAttributes.cs; record size measured in TIC") { RecordNames = Names.Abilities };
 

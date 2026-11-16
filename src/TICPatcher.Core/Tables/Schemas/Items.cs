@@ -10,7 +10,7 @@ namespace TICPatcher.Core.Tables.Schemas;
 /// Armor.cs, Accessory.cs, ChemistItem.cs, AllItems.cs, ItemAttributes.cs,
 /// StoreInventory.cs, PatcherLib/Datatypes/Shops.cs. Field names follow FFTPatcher's.
 /// The Ivalice Chronicles' item attribute records are 26 bytes, not 25:
-/// byte 25 is new and not yet understood (see docs/tables.md).
+/// byte 25 (New25) is new and not yet understood (see docs/unknowns.md).
 /// </summary>
 public static class Items
 {
@@ -90,6 +90,7 @@ public static class Items
             FieldDef.Flags("HalfElement", 22, Jobs.Elements),
             FieldDef.Flags("WeakElement", 23, Jobs.Elements),
             FieldDef.Flags("StrongElement", 24, Jobs.Elements),
+            FieldDef.U8("New25", 25),
         ],
         Source: "FFTPatcher Datatypes/Items/ItemAttributes.cs; record size measured in TIC");
 

@@ -29,12 +29,20 @@ public static class FieldNotes
         ["StatusAttributes.Flags1.Unknown5"] = "Only Crystal and Treasure: the unit has left the battle.",
         ["StatusAttributes.Flags1.Unknown4"] = "Confusion, Invisible, Charm, Sleep: statuses an attack can break; not settled.",
         ["StatusAttributes.Flags2.Unknown9"] = "Blind, Confusion, Silence, Invisible, Berserk, Chicken, Toad, Stop, Charm, Sleep, Immobilize, Disable; meaning not settled.",
-        ["ActionAbilities"] = "Records are 20 bytes in The Ivalice Chronicles; bytes 14-19 are new, 00 00 FF FF FF FF on every ability, and not editable yet.",
-        ["ItemAttributes"] = "Records are 26 bytes in The Ivalice Chronicles; byte 25 is new, 0 on every item, and not editable yet.",
+        ["ActionAbilities.New14"] = NewAbilityBytes,
+        ["ActionAbilities.New15"] = NewAbilityBytes,
+        ["ActionAbilities.New16"] = NewAbilityBytes,
+        ["ActionAbilities.New17"] = NewAbilityBytes,
+        ["ActionAbilities.New18"] = NewAbilityBytes,
+        ["ActionAbilities.New19"] = NewAbilityBytes,
+        ["ItemAttributes.New25"] = "New in The Ivalice Chronicles (records grew from 25 to 26 bytes); 0 on every item. Purpose unknown: experiment carefully.",
         ["Weapons.Unknown"] = "FF on every weapon in the original game.",
         ["Items.Unknown1"] = "0 on every item in the original game.",
         ["Items.Unknown2"] = "0 on every item in the original game.",
     };
+
+    private const string NewAbilityBytes =
+        "New in The Ivalice Chronicles (records grew from 14 to 20 bytes); 00 00 FF FF FF FF on every ability. Purpose unknown: experiment carefully.";
 
     public static string? For(string table, string? field = null, string? flag = null) =>
         Notes.GetValueOrDefault(string.Join('.', new[] { table, field, flag }.Where(p => p is not null)));
