@@ -30,6 +30,9 @@ public enum FieldKind
 public sealed record FieldDef(string Name, int Offset, FieldKind Kind, int Size = 1, IReadOnlyList<string?>? FlagNames = null)
 {
     public byte Mask { get; init; } = 0xFF;
+
+    /// <summary>The <see cref="Names"/> list this field's value is an id in, if any (e.g. a job's skill set).</summary>
+    public string? NameList { get; init; }
     public int HighOffset { get; init; }
     public byte HighMask { get; init; }
 
@@ -53,6 +56,14 @@ public sealed record FieldDef(string Name, int Offset, FieldKind Kind, int Size 
 public sealed record TableSchema(string Name, int RecordSize, int RecordCount, IReadOnlyList<FieldDef> Fields, string Source)
 {
     public int FirstId { get; init; }
+
+    /// <summary>The <see cref="Names"/> list naming this table's records, if any.</summary>
+    public string? RecordNames { get; init; }
+
+    /// <summary>Overrides <see cref="RecordNames"/> for tables named some other way.</summary>
+    public Func<int, string?>? RecordName { get; init; }
+
+    public string? NameOf(int id) => RecordName is { } name ? name(id) : RecordNames is { } list ? Names.Get(list, id) : null;
 
     public FieldDef Field(string name) =>
         Fields.FirstOrDefault(f => f.Name == name) ?? throw new KeyNotFoundException($"{Name} has no field {name}");

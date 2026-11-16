@@ -32,7 +32,7 @@ public static class Items
             FieldDef.U8("ShopAvailability", 10),
             FieldDef.U8("Unknown2", 11),
         ],
-        Source: "FFTPatcher Datatypes/Items/Item.cs");
+        Source: "FFTPatcher Datatypes/Items/Item.cs") { RecordNames = Names.Items };
 
     public static readonly TableSchema Weapons = new(
         "Weapons",
@@ -49,27 +49,27 @@ public static class Items
             FieldDef.Flags("Elements", 6, Jobs.Elements),
             FieldDef.U8("InflictStatus", 7),
         ],
-        Source: "FFTPatcher Datatypes/Items/Weapon.cs, AllItems.cs");
+        Source: "FFTPatcher Datatypes/Items/Weapon.cs, AllItems.cs") { RecordNames = Names.Items };
 
     public static readonly TableSchema Shields = new(
         "Shields", RecordSize: 2, RecordCount: 0x10,
         Fields: [FieldDef.U8("PhysicalBlockRate", 0), FieldDef.U8("MagicBlockRate", 1)],
-        Source: "FFTPatcher Datatypes/Items/Shield.cs, AllItems.cs") { FirstId = 0x80 };
+        Source: "FFTPatcher Datatypes/Items/Shield.cs, AllItems.cs") { FirstId = 0x80, RecordNames = Names.Items };
 
     public static readonly TableSchema Armor = new(
         "Armor", RecordSize: 2, RecordCount: 0x40,
         Fields: [FieldDef.U8("HPBonus", 0), FieldDef.U8("MPBonus", 1)],
-        Source: "FFTPatcher Datatypes/Items/Armor.cs, AllItems.cs") { FirstId = 0x90 };
+        Source: "FFTPatcher Datatypes/Items/Armor.cs, AllItems.cs") { FirstId = 0x90, RecordNames = Names.Items };
 
     public static readonly TableSchema Accessories = new(
         "Accessories", RecordSize: 2, RecordCount: 0x20,
         Fields: [FieldDef.U8("PhysicalEvade", 0), FieldDef.U8("MagicEvade", 1)],
-        Source: "FFTPatcher Datatypes/Items/Accessory.cs, AllItems.cs") { FirstId = 0xD0 };
+        Source: "FFTPatcher Datatypes/Items/Accessory.cs, AllItems.cs") { FirstId = 0xD0, RecordNames = Names.Items };
 
     public static readonly TableSchema ChemistItems = new(
         "ChemistItems", RecordSize: 3, RecordCount: 0x0E,
         Fields: [FieldDef.U8("Formula", 0), FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2)],
-        Source: "FFTPatcher Datatypes/Items/ChemistItem.cs, AllItems.cs") { FirstId = 0xF0 };
+        Source: "FFTPatcher Datatypes/Items/ChemistItem.cs, AllItems.cs") { FirstId = 0xF0, RecordNames = Names.Items };
 
     public static readonly TableSchema Attributes = new(
         "ItemAttributes",
@@ -103,5 +103,5 @@ public static class Items
     public static readonly TableSchema ShopInventories = new(
         "ShopInventories", RecordSize: 2, RecordCount: 256,
         Fields: [FieldDef.Flags("Shops", 0, Shops)],
-        Source: "FFTPatcher Datatypes/Items/StoreInventory.cs, PatcherLib/Datatypes/Shops.cs");
+        Source: "FFTPatcher Datatypes/Items/StoreInventory.cs, PatcherLib/Datatypes/Shops.cs") { RecordNames = Names.Items };
 }

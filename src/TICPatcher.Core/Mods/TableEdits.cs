@@ -51,6 +51,55 @@ public sealed class TableEdits
         fields[field] = value;
     }
 
+    public bool Remove(string table, int record, string field)
+    {
+        if (!_edits.TryGetValue(table, out var records) || !records.TryGetValue(record, out var fields) || !fields.Remove(field))
+            return false;
+        if (fields.Count == 0)
+            records.Remove(record);
+        if (records.Count == 0)
+            _edits.Remove(table);
+        return true;
+    }
+
+    public string? Get(string table, int record, string field) =>
+        _edits.TryGetValue(table, out var records) && records.TryGetValue(record, out var fields) && fields.TryGetValue(field, out var value)
+            ? value
+            : null;
+
+    /// <summary>
+    /// The edits as tables.json: record ids in hex, numbers as numbers and
+    /// flags as strings, tables and fields in schema order.
+    /// </summary>
+    public string ToJson()
+    {
+        using var stream = new MemoryStream();
+        using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            json.WriteStartObject();
+            foreach (var schema in KnownTables.Values.Where(s => _edits.ContainsKey(s.Name)))
+            {
+                json.WriteStartObject(schema.Name);
+                foreach (var (record, fields) in _edits[schema.Name])
+                {
+                    json.WriteStartObject($"0x{record:X2}");
+                    foreach (var def in schema.Fields.Where(f => fields.ContainsKey(f.Name)))
+                    {
+                        var value = fields[def.Name];
+                        if (def.Kind == FieldKind.Flags)
+                            json.WriteString(def.Name, value);
+                        else
+                            json.WriteNumber(def.Name, int.Parse(value, CultureInfo.InvariantCulture));
+                    }
+                    json.WriteEndObject();
+                }
+                json.WriteEndObject();
+            }
+            json.WriteEndObject();
+        }
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
+    }
+
     /// <summary>Adds another mod's edits on top of these (they win where both set a field).</summary>
     public void Merge(TableEdits later)
     {

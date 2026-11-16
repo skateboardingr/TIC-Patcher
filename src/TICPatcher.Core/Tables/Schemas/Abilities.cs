@@ -33,7 +33,7 @@ public static class Abilities
             ]),
             FieldDef.Flags("Flags2", 7, ["UsedByEnemies", "Unknown2", "Unknown3", "Blank2", "Blank3", "Blank4", "Blank5", "Unknown4"]),
         ],
-        Source: "FFTPatcher Datatypes/Abilities/Ability.cs, AIFlags.cs");
+        Source: "FFTPatcher Datatypes/Abilities/Ability.cs, AIFlags.cs") { RecordNames = Names.Abilities };
 
     public static readonly TableSchema Action = new(
         "ActionAbilities",
@@ -56,30 +56,30 @@ public static class Abilities
             FieldDef.U8("Ticks", 12),
             FieldDef.U8("MPCost", 13),
         ],
-        Source: "FFTPatcher Datatypes/Abilities/AbilityAttributes.cs; record size measured in TIC");
+        Source: "FFTPatcher Datatypes/Abilities/AbilityAttributes.cs; record size measured in TIC") { RecordNames = Names.Abilities };
 
     public static readonly TableSchema Throw = new(
         "ThrowAbilities", RecordSize: 1, RecordCount: 12,
         Fields: [FieldDef.U8("ItemType", 0)],
-        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (Throwing)") { FirstId = 0x17E };
+        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (Throwing)") { FirstId = 0x17E, RecordNames = Names.Abilities };
 
     public static readonly TableSchema Jump = new(
         "JumpAbilities", RecordSize: 2, RecordCount: 12,
         Fields: [FieldDef.U8("JumpHorizontal", 0), FieldDef.U8("JumpVertical", 1)],
-        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (JumpHorizontal, JumpVertical)") { FirstId = 0x18A };
+        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (JumpHorizontal, JumpVertical)") { FirstId = 0x18A, RecordNames = Names.Abilities };
 
     public static readonly TableSchema Charge = new(
         "ChargeAbilities", RecordSize: 2, RecordCount: 8,
         Fields: [FieldDef.U8("ChargeTicks", 0), FieldDef.U8("ChargeBonus", 1)],
-        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (ChargeTicks, ChargeBonus)") { FirstId = 0x196 };
+        Source: "FFTPatcher Datatypes/Abilities/Ability.cs (ChargeTicks, ChargeBonus)") { FirstId = 0x196, RecordNames = Names.Abilities };
 
     public static readonly TableSchema Effects = new(
         "AbilityEffects", RecordSize: 2, RecordCount: 0x1C6,
         Fields: [FieldDef.U16("Effect", 0)],
-        Source: "FFTPatcher Datatypes/Abilities/AllAbilities.cs (ToEffectsByteArray)");
+        Source: "FFTPatcher Datatypes/Abilities/AllAbilities.cs (ToEffectsByteArray)") { RecordNames = Names.Abilities };
 
     public static readonly TableSchema Animations = new(
         "AbilityAnimations", RecordSize: 3, RecordCount: 0x1C6,
         Fields: [FieldDef.U8("Byte1", 0), FieldDef.U8("Byte2", 1), FieldDef.U8("Byte3", 2)],
-        Source: "FFTPatcher Datatypes/Abilities/Animation.cs, AllAnimations.cs");
+        Source: "FFTPatcher Datatypes/Abilities/Animation.cs, AllAnimations.cs") { RecordNames = Names.Abilities };
 }

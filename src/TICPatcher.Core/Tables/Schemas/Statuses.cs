@@ -25,7 +25,7 @@ public static class Statuses
             FieldDef.Flags("Cancels", 6, Jobs.Statuses),
             FieldDef.Flags("CantStackOn", 11, Jobs.Statuses),
         ],
-        Source: "FFTPatcher Datatypes/Status/StatusAttribute.cs");
+        Source: "FFTPatcher Datatypes/Status/StatusAttribute.cs") { RecordNames = Names.Statuses };
 
     public static readonly TableSchema Inflict = new(
         "InflictStatuses",

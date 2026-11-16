@@ -23,12 +23,12 @@ public static class SkillSets
 
     public static readonly TableSchema Main = new(
         "SkillSets", RecordSize: 25, RecordCount: 0xB0, Fields: SkillSetFields(),
-        Source: "FFTPatcher Datatypes/Job/SkillSet.cs");
+        Source: "FFTPatcher Datatypes/Job/SkillSet.cs") { RecordNames = Names.SkillSets };
 
     /// <summary>Skill sets 0xE0-0xE2, stored right after 0x00-0xAF.</summary>
     public static readonly TableSchema Extra = new(
         "SkillSetsExtra", RecordSize: 25, RecordCount: 3, Fields: SkillSetFields(),
-        Source: "FFTPatcher Datatypes/Job/SkillSet.cs (AllSkillSets)") { FirstId = 0xE0 };
+        Source: "FFTPatcher Datatypes/Job/SkillSet.cs (AllSkillSets)") { FirstId = 0xE0, RecordNames = Names.SkillSets };
 
     public static readonly TableSchema MonsterSkills = new(
         "MonsterSkills",
@@ -41,13 +41,13 @@ public static class SkillSets
             FieldDef.Ability("Ability3", 3, 0, 0x20),
             FieldDef.Ability("Beastmaster", 4, 0, 0x10),
         ],
-        Source: "FFTPatcher Datatypes/Job/MonsterSkills.cs") { FirstId = 0xB0 };
+        Source: "FFTPatcher Datatypes/Job/MonsterSkills.cs") { FirstId = 0xB0, RecordNames = Names.SkillSets };
 
     /// <summary>What each skill set's menu does (FFTPatcher's MenuAction numbers).</summary>
     public static readonly TableSchema ActionMenus = new(
         "ActionMenus", RecordSize: 1, RecordCount: 0xE3,
         Fields: [FieldDef.U8("MenuAction", 0)],
-        Source: "FFTPatcher Datatypes/Job/ActionMenu.cs");
+        Source: "FFTPatcher Datatypes/Job/ActionMenu.cs") { RecordNames = Names.SkillSets };
 
     /// <summary>
     /// Job unlock requirements: record N is the job in <see cref="RequirementJobs"/>[N];
@@ -70,7 +70,10 @@ public static class SkillSets
         RecordSize: 12,
         RecordCount: 22,
         Fields: RequirementFieldNames.Select((name, i) => i % 2 == 0 ? FieldDef.Upper(name, i / 2) : FieldDef.Lower(name, i / 2)).ToList(),
-        Source: "FFTPatcher Datatypes/Job/JobLevels.cs (Requirements)");
+        Source: "FFTPatcher Datatypes/Job/JobLevels.cs (Requirements)")
+    {
+        RecordName = id => id >= 0 && id < RequirementJobs.Count ? RequirementJobs[id] : null,
+    };
 
     /// <summary>
     /// JP needed for each job level; one record, stored right after the requirements

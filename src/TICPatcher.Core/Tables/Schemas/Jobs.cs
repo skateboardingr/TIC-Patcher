@@ -37,11 +37,11 @@ public static class Jobs
         RecordCount: 169,
         Fields:
         [
-            FieldDef.U8("SkillSet", 0),
-            FieldDef.U16("InnateA", 1),
-            FieldDef.U16("InnateB", 3),
-            FieldDef.U16("InnateC", 5),
-            FieldDef.U16("InnateD", 7),
+            FieldDef.U8("SkillSet", 0) with { NameList = Names.SkillSets },
+            FieldDef.U16("InnateA", 1) with { NameList = Names.Abilities },
+            FieldDef.U16("InnateB", 3) with { NameList = Names.Abilities },
+            FieldDef.U16("InnateC", 5) with { NameList = Names.Abilities },
+            FieldDef.U16("InnateD", 7) with { NameList = Names.Abilities },
             FieldDef.Flags("Equipment", 9, Equipment),
             FieldDef.U8("HPConstant", 14),
             FieldDef.U8("HPMultiplier", 15),
@@ -67,7 +67,7 @@ public static class Jobs
             FieldDef.U8("MPalette", 47),
             FieldDef.U8("MGraphic", 48),
         ],
-        Source: "FFTPatcher Datatypes/Job/Job.cs (PSP layout)");
+        Source: "FFTPatcher Datatypes/Job/Job.cs (PSP layout)") { RecordNames = Names.Jobs };
 
     /// <summary>Job ids of the generic jobs, Squire (0x4A) to Mime (0x5D).</summary>
     public const int FirstGenericJob = 0x4A;
