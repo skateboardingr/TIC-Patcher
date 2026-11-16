@@ -11,7 +11,7 @@ public static class AllTables
         Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge,
         Abilities.Effects, Abilities.Animations,
         Items.Common, Items.Weapons, Items.Shields, Items.Armor, Items.Accessories, Items.ChemistItems,
-        Items.Extra, Items.ExtraWeapons,
+        Items.Extra, Items.ExtraWeapons, Items.ExtraArmor,
         Items.Attributes, Items.ShopInventories,
         Statuses.Attributes, Statuses.Inflict,
     ];

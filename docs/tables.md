@@ -33,6 +33,7 @@ Record layouts and names follow FFTPatcher (Glain, Joe Davidson); see [findings.
 | **Item attributes** | +0x80FEA0 | **0x55** × **26** | 100% of the first 25 | PSP records are 25 bytes; byte 25 is new (JP Boost). 0x50-0x54 are new: the extra items' attributes |
 | **Extra items** | +0x680510 | 5 × 12 | — | items the remaster added (Materia Blade+, the Akademy set, Ring of Aptitude), ids probably 0x100-0x104 |
 | Extra weapons | +0x680500 | 2 × 8 | — | weapon data for the two extra swords |
+| Extra armor | +0x6732FC | 2 × 2 | — | HP/MP for the Akademy Beret and Tunic (+20/+0) |
 
 ## Names in tables.json
 

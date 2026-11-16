@@ -27,6 +27,27 @@ if (args[1] == "--find-disp")
     }
     return;
 }
+if (args[1] == "--find-addr")
+{
+    // --find-addr <hex module offset>[,...]: instructions that address it RIP-relative (lea/mov [rip+x]).
+    var targets = args[2].Split(',').Select(d => Convert.ToUInt64(d, 16)).ToHashSet();
+    var sweep = Decoder.Create(64, new ByteArrayCodeReader(image, 0x1000, Math.Min(image.Length, 0x1000000) - 0x1000));
+    sweep.IP = 0x1000;
+    var text = new IntelFormatter();
+    var line = new StringOutput();
+    while (sweep.IP < (ulong)Math.Min(image.Length, 0x1000000))
+    {
+        var instruction = sweep.Decode();
+        if (instruction.IsInvalid || !instruction.IsIPRelativeMemoryOperand)
+            continue;
+        if (targets.Contains(instruction.IPRelativeMemoryAddress))
+        {
+            text.Format(instruction, line);
+            Console.WriteLine($"+0x{instruction.IP:X}  {line.ToStringAndReset()}");
+        }
+    }
+    return;
+}
 foreach (var spec in args[1..])
 {
     var parts = spec.Split(':');

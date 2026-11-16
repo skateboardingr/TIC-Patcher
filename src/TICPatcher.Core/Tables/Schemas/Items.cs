@@ -122,7 +122,19 @@ public static class Items
     public static readonly TableSchema ExtraWeapons = Weapons with
     {
         Name = "ExtraWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = null,
+        RecordName = id => ExtraNames.GetValueOrDefault(id),
         Source = "Found in TIC next to the extra items; layout as FFTPatcher Datatypes/Items/Weapon.cs",
+    };
+
+    /// <summary>
+    /// HP/MP for the two extra armor pieces (Akademy Beret, Akademy Tunic). The
+    /// game's second-table lookup (+0x2B8D3C) sends their category here.
+    /// </summary>
+    public static readonly TableSchema ExtraArmor = Armor with
+    {
+        Name = "ExtraArmor", RecordCount = 2, FirstId = 0x102, RecordNames = null,
+        RecordName = id => ExtraNames.GetValueOrDefault(id),
+        Source = "Found in TIC through its lookup code; layout as FFTPatcher Datatypes/Items/Armor.cs",
     };
 
     /// <summary>Which shops sell each item: a big-endian 16-bit set, Lesalia = 0x8000.</summary>
