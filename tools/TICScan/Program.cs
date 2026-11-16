@@ -13,6 +13,9 @@ using TICPatcher.Core.Tables.Schemas;
 // PSP defaults); it is only compared against, never written anywhere.
 // Without --all only the game's own executable image is searched.
 // --set writes one field of one job (temporary: gone when the game closes).
+// --dump <file> also saves the game's executable image as it is in memory,
+// unreadable gaps zero-filled, so offsets in the file are module offsets.
+// It's for offline research only; never share it (it is the game's code).
 
 if (!OperatingSystem.IsWindows())
 {
@@ -37,7 +40,9 @@ var setIndex = Array.IndexOf(args, "--set");
 (int Job, string Field, string Value)? set = setIndex >= 0 && args.Length > setIndex + 3
     ? (Convert.ToInt32(args[setIndex + 1], 16), args[setIndex + 2], args[setIndex + 3])
     : null;
-var positional = args.Skip(1).Take(setIndex >= 0 ? setIndex - 1 : int.MaxValue).Where(a => !a.StartsWith("--"));
+var dumpIndex = Array.IndexOf(args, "--dump");
+var dump = dumpIndex >= 0 && args.Length > dumpIndex + 1 ? args[dumpIndex + 1] : null;
+var positional = args.Skip(1).Take(setIndex >= 0 ? setIndex - 1 : int.MaxValue).Where(a => !a.StartsWith("--") && a != dump);
 var processName = positional.FirstOrDefault() ?? "fft_enhanced";
 var all = args.Contains("--all");
 
@@ -49,12 +54,12 @@ if (process is null)
     Console.Error.WriteLine($"{processName} isn't running.");
     return 1;
 }
-return Scanner.Run(process, reference, all, set);
+return Scanner.Run(process, reference, all, set, dump);
 
 [SupportedOSPlatform("windows")]
 static class Scanner
 {
-    public static int Run(Process process, byte[] reference, bool all, (int Job, string Field, string Value)? set)
+    public static int Run(Process process, byte[] reference, bool all, (int Job, string Field, string Value)? set, string? dump)
     {
         var module = process.MainModule ?? throw new InvalidOperationException("no main module");
         var moduleStart = (long)module.BaseAddress;
@@ -69,6 +74,14 @@ static class Scanner
         try
         {
             var memory = new ProcessMemory(handle);
+            if (dump is not null)
+            {
+                var image = new byte[module.ModuleMemorySize];
+                foreach (var (start, bytes) in memory.ContiguousBlocks(moduleStart, moduleEnd))
+                    bytes.AsSpan(0, (int)Math.Min(bytes.Length, moduleEnd - start)).CopyTo(image.AsSpan((int)(start - moduleStart)));
+                File.WriteAllBytes(dump, image);
+                Console.WriteLine($"  saved {image.Length / 1024 / 1024} MB to {dump}");
+            }
             var locator = TableLocator.ForJobs(reference);
             var found = 0;
             foreach (var (start, bytes) in memory.ContiguousBlocks(all ? 0 : moduleStart, all ? long.MaxValue : moduleEnd))
