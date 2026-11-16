@@ -62,3 +62,13 @@ TIC Loader applied the changes (confirmed in the log), and Ramza used the abilit
 - Stone, unchanged, used for comparison: normal.
 
 This is one quick look, not exhaustive. The bytes may matter in situations not tried: other ability types (magic, summons), enemies using the ability, menus, or other values. Next tries: magic (Cure), larger values, and an enemy-used ability. If they keep doing nothing, TIC Loader could give them a meaning of its own.
+
+## Watching what the game reads
+
+TIC Loader can record which bytes of chosen tables the game actually reads, and from which code. Put a `watch.json` next to `tic.loader.dll`:
+
+```json
+{ "Tables": ["ActionAbilities", "ItemAttributes"], "Minutes": 10 }
+```
+
+Then play normally. `watch-report.txt` appears next to it, updated every 30 seconds, with a read count per byte of each record and the code addresses that read it. A byte that stays at 0 through menus, battles and enemy turns is very likely unused. The game runs slower while watching. Delete `watch.json` to turn it off. `tools/WatchTest` checks the watcher outside the game.

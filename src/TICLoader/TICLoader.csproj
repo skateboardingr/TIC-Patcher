@@ -9,7 +9,13 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <OutputPath>bin/$(Configuration)/tic.loader</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The read watcher's stand-in test (tools/WatchTest). -->
+    <InternalsVisibleTo Include="WatchTest" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />

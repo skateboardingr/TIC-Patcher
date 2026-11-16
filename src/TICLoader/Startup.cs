@@ -22,24 +22,34 @@ public class Startup : IMod
 
     private IModLoader _modLoader = null!;
     private ILogger _logger = null!;
+    private IModConfigV1 _config = null!;
 
     public void StartEx(IModLoaderV1 loaderApi, IModConfigV1 modConfig)
     {
         _modLoader = (IModLoader)loaderApi;
         _logger = (ILogger)_modLoader.GetLogger();
+        _config = modConfig;
         _modLoader.OnModLoaderInitialized += OnAllModsLoaded;
     }
 
     private void OnAllModsLoaded()
     {
         var edits = CollectEdits();
-        if (edits.IsEmpty)
+        ReadWatcher.Config? watch = null;
+        try
         {
-            Log("no enabled mod has " + TablesFile);
-            return;
+            watch = ReadWatcher.Load(OwnFolder);
         }
+        catch (Exception error) when (error is IOException or System.Text.Json.JsonException)
+        {
+            Log("watch.json: " + error.Message);
+        }
+        if (edits.IsEmpty)
+            Log("no enabled mod has " + TablesFile);
+        if (edits.IsEmpty && watch is null)
+            return;
         // The game may still be unpacking its data; don't hold up startup.
-        new Thread(() => Apply(edits)) { IsBackground = true, Name = "TIC Loader" }.Start();
+        new Thread(() => Apply(edits, watch)) { IsBackground = true, Name = "TIC Loader" }.Start();
     }
 
     private TableEdits CollectEdits()
@@ -66,7 +76,9 @@ public class Startup : IMod
         return merged;
     }
 
-    private void Apply(TableEdits edits)
+    private string OwnFolder => _modLoader.GetDirectoryForModId(_config.ModId);
+
+    private void Apply(TableEdits edits, ReadWatcher.Config? watch)
     {
         try
         {
@@ -114,6 +126,14 @@ public class Startup : IMod
                     ApplyTable(memory, schema, edits, moduleStart, offset);
                 else
                     Log($"{table}: skipped, not located in this game version");
+            }
+
+            if (watch is not null)
+            {
+                if (build is null)
+                    Log("watch: needs a known game version; not watching");
+                else
+                    ReadWatcher.Start(watch, build.Tables, moduleStart, moduleEnd, Path.Combine(OwnFolder, "watch-report.txt"), Log);
             }
         }
         catch (Exception error)
