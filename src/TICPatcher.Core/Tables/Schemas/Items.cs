@@ -102,7 +102,7 @@ public static class Items
     /// </summary>
     public static readonly IReadOnlyDictionary<int, string> BonusNames = new Dictionary<int, string>
     {
-        [0x100] = "Materia Blade+", // exact spelling not yet seen in game
+        [0x100] = "Materia Blade+",
         [0x101] = "Akademy Blade",
         [0x102] = "Akademy Beret",
         [0x103] = "Akademy Tunic",

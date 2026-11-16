@@ -92,7 +92,7 @@ The user pointed out that the preorder bonus items had JP and EXP boosts and tha
 
 | Attributes | Effect | Item (+0x680510, 12-byte records) | Name in game |
 |---|---|---|---|
-| 0x54 | MA +4 | 0x100 sword, power 16 | **Materia Blade+** (identified by the user; another edition's bonus, not in their save; exact spelling unchecked) |
+| 0x54 | MA +4 | 0x100 sword, power 16 | **Materia Blade+** (another edition's bonus, not in the user's save; in-game page: power 16, evade 10%, raises magick attack) |
 | 0x51 | Speed +1 | 0x101 sword, power 6, evade 10 | **Akademy Blade** |
 | 0x52 | immune to Charm | 0x102 hat (type 21) | **Akademy Beret** |
 | 0x53 | permanent Shell | 0x103 clothing (type 24) | **Akademy Tunic** |
