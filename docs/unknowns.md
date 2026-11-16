@@ -48,7 +48,7 @@ These look like hints for the enemy AI: copies of an ability's real settings in 
 The original data gives no clue for these:
 
 - **Action abilities, bytes 14-19** (new in TIC): `00 00 FF FF FF FF` on all 368. They look like a 2-byte value and a 4-byte "none" (-1), probably a remaster feature the original abilities don't use.
-- **Item attributes, byte 25** (new in TIC): 0 on all 80.
+- **Item attributes, byte 25** (new in TIC): 0 on all 80. *Solved below: JP Boost from equipment.*
 - **Weapons, Unknown (byte 3)**: FF on all 128.
 - **Items, Unknown1 and Unknown2**: 0 on all 256.
 - **Status attributes, Blank1 and Blank2**: 0 on all 40.
@@ -72,3 +72,16 @@ TIC Loader can record which bytes of chosen tables the game actually reads, and 
 ```
 
 Then play normally. `watch-report.txt` appears next to it, updated every 30 seconds, with a read count per byte of each record and the code addresses that read it. A byte that stays at 0 through menus, battles and enemy turns is very likely unused. The game runs slower while watching. Delete `watch.json` to turn it off. `tools/WatchTest` checks the watcher outside the game.
+
+### First watch (2026-11-16): menus, the field and a battle
+
+- **ItemAttributes byte 25 is read.** The routine that applies equipment attributes to a unit (`+0x277A31`-`+0x277B74`) does `cmp [attr+0x19], 0` / `bts [unit+0x1F8], 11`: a non-zero byte 25 turns on bit 11 of a unit flags field. That bit is checked in two places only:
+  - `+0x2835E0`, in the JP-gain routine (it loops over the 21 units and shares a quarter of the JP with the others). JP Boost (`test byte [unit+0x99], 0x40`) multiplies by 1.5; otherwise bit 11 multiplies by the float at `+0x722E0C`, which is **1.5**.
+  - `+0x30C6D5`, in the Accrue EXP/JP (move-to-earn) routine. The JP amount is doubled by JP Boost, or otherwise by bit 11.
+
+  So byte 25 means **"this equipment gives JP Boost"**, a remaster feature no original item uses. The field is now named `JPBoost`. Next: confirm in play.
+- **StatusAttributes Blank1 and Blank2 are never read**, while every other byte is. They're free for future TIC Loader features.
+- **ActionAbilities**: one routine (`+0x5C9F50`-`+0x5C9F8E`) reads every record once, 4 bytes at a time: a copy of the table. Later reads go to the copy, so this watch says nothing yet about bytes 14-19. Next: find and watch the copy.
+- **Abilities (common)**: the AI reads byte 4 heavily (`+0x320805`) and byte 5 once per ability (`+0x38AC87`). The report shows where reads start, not their width, so byte 6 may be covered by wider reads. The code at those addresses (`tools/Disasm`) settles it.
+
+The unit's support flags include `[unit+0x99] & 0x40` = JP Boost.

@@ -7,6 +7,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/TICScan/TICScan.csproj" />
     <Project Path="tools/WatchTest/WatchTest.csproj" />
+    <Project Path="tools/Disasm/Disasm.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TICPatcher.Core.Tests/TICPatcher.Core.Tests.csproj" />
