@@ -38,7 +38,7 @@ Record layouts and names follow FFTPatcher (Glain, Joe Davidson); see [findings.
 
 Record ids are the game's own: armor starts at 0x90, charge abilities at 0x196 and so on. Fields are listed in `src/TICPatcher.Core/Tables/Schemas`. Check a table against a memory copy with `TICScan --image <file> <table> <id>...`.
 
-Checked against well-known values in a memory copy (2026-11-16): Dagger price 100, weapon power 3; Potion 50, Phoenix Down 300; Leather Helm +10 HP; Escutcheon 10/3 block; Cure and Fire range 4, CT 4, 6 MP; Haste CT 2, 8 MP; Chemist's skill set is the item abilities 368-381; Knight needs Squire level 2. Live edits of tables other than jobs are not tested yet.
+Checked against well-known values in a memory copy (2026-11-16): Dagger price 100, weapon power 3; Potion 50, Phoenix Down 300; Leather Helm +10 HP; Escutcheon 10/3 block; Cure and Fire range 4, CT 4, 6 MP; Haste CT 2, 8 MP; Chemist's skill set is the item abilities 368-381; Knight needs Squire level 2. Live edits through TIC Loader confirmed in the game (2026-11-16): Potion price 50 → 10 in shops, Cure MP 6 → 1 in the ability menu (not yet tried in battle), alongside Ramza's Move 6. The other tables are decoded and located the same way but not yet tried live.
 
 ## Not found in the executable
 
