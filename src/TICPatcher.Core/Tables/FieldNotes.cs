@@ -11,8 +11,8 @@ public static class FieldNotes
     private static readonly Dictionary<string, string> Notes = new(StringComparer.Ordinal)
     {
         ["Abilities.AIFlags.Unknown1"] = "Likely: AI hint that the ability is magic that Silence blocks (agrees with the ability's own NotSilence setting on 93% of abilities).",
-        ["Abilities.AIFlags.Unknown2"] = "Likely: AI hint 'affected by Faith' (set on 98% of abilities that cost MP; also reported on the FFH forums).",
-        ["Abilities.AIFlags.Unknown3"] = "Likely: AI hint 'can be evaded' (follows physical, evadable skills; also reported on the FFH forums).",
+        ["Abilities.AIFlags.Unknown2"] = "Likely: AI hint 'affected by Faith' (set on 98% of abilities that cost MP).",
+        ["Abilities.AIFlags.Unknown3"] = "Likely: AI hint 'can be evaded' (follows physical, evadable skills).",
         ["Abilities.AIFlags.Unknown4"] = "Likely: AI copy of the ability's Direct setting (agrees on 100% of abilities).",
         ["Abilities.AIFlags.Unknown5"] = "Likely: AI hint for line attacks that go through units (Kiku-ichimonji, Shockwave, Divine Ruination only).",
         ["Abilities.AIFlags.NotUnknown6"] = "Likely: AI hint for breath-style line attacks (the breaths and Ink only).",

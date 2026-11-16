@@ -38,7 +38,7 @@ Jobs, abilities, skill sets, items, statuses, shops and more can be edited; [doc
 
 ## Sources
 
-Table layouts come from FFTPatcher (GPL-3.0, Joe Davidson / Glain) and the ffhacktics wiki, plus our own analysis of the running game. Each schema names its source.
+Table layouts come from FFTPatcher (GPL-3.0, Joe Davidson / Glain), plus our own analysis of the running game. Each schema names its source.
 
 ## Credits
 
@@ -46,7 +46,7 @@ TIC Patcher stands on the shoulders of **[FFTPatcher](https://github.com/Glain/F
 
 - **Glain**, who has maintained and extended FFTPatcher and its suite (FFTacText, FFTorgASM, EntryEdit, ShishiSpriteEditor) for years.
 - **Joe Davidson (melonhead)**, FFTPatcher's original author.
-- **All FFTPatcher contributors**, and the **[Final Fantasy Hacktics](https://ffhacktics.com) community**, whose decades of documentation of the game's data made this possible.
+- **All FFTPatcher contributors.**
 
 TIC Patcher's table layouts, field names and flag lists come from FFTPatcher, and each schema file names the FFTPatcher source it follows. Thank you.
 

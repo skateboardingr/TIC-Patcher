@@ -11,8 +11,8 @@ Compared over the 366 action abilities that have a formula.
 | Flag | Set on | Best match | Reading |
 |---|---|---|---|
 | Unknown1 | 104 | NotSilence 93% | likely: magic that Silence blocks |
-| Unknown2 | 117 | costs MP 98% | likely: affected by Faith. The FFH forums report the same. |
-| Unknown3 | 74 | Shirahadori 92%, Evadeable 83% | likely: can be evaded. The FFH forums report the same. |
+| Unknown2 | 117 | costs MP 98% | likely: affected by Faith |
+| Unknown3 | 74 | Shirahadori 92%, Evadeable 83% | likely: can be evaded |
 | Unknown4 | 17 | Direct **100%** | AI copy of Direct |
 | Unknown5 | 3 | Kiku-ichimonji, Shockwave, Divine Ruination | line attacks that pass through units |
 | NotUnknown6 | 8 | the breaths and Ink | breath-style line attacks; with Unknown5, it covers almost all LinearAttack abilities |
