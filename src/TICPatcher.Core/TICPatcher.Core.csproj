@@ -5,6 +5,9 @@
     <RootNamespace>TICPatcher.Core</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../TICLoader.Interfaces/TICLoader.Interfaces.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="Resources/names.json" LogicalName="names.json" />
   </ItemGroup>
 </Project>

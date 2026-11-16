@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.Versioning;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
+using TICLoader.Interfaces;
 using TICPatcher.Core.Memory;
 using TICPatcher.Core.Mods;
 using TICPatcher.Core.Tables;
@@ -10,31 +11,37 @@ using TICPatcher.Core.Tables.Schemas;
 namespace TICPatcher.Loader;
 
 /// <summary>
-/// TIC Loader: once every mod has loaded, merges each enabled mod's
-/// TIC/tables.json (in load order, later mods winning) and writes the result
-/// into the game's tables in memory. Game files are never touched.
+/// TIC Loader: once every mod has loaded, merges each enabled mod's edits
+/// (TIC/tables.json, formats other mods register, edits added from code; in
+/// load order, later mods winning) and writes the result into the game's
+/// tables in memory. Game files are never touched. Other mods reach it through
+/// <see cref="ITICLoader"/> (docs/bridge.md).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public class Startup : IMod
 {
-    private const string TablesFile = "TIC/tables.json";
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(2);
 
     private IModLoader _modLoader = null!;
     private ILogger _logger = null!;
     private IModConfigV1 _config = null!;
+    private readonly ModCollector _collector = new();
+    private LoaderApi _api = null!;
 
     public void StartEx(IModLoaderV1 loaderApi, IModConfigV1 modConfig)
     {
         _modLoader = (IModLoader)loaderApi;
         _logger = (ILogger)_modLoader.GetLogger();
         _config = modConfig;
+        _api = new LoaderApi(_collector);
+        _modLoader.AddOrReplaceController<ITICLoader>(this, _api);
         _modLoader.OnModLoaderInitialized += OnAllModsLoaded;
     }
 
     private void OnAllModsLoaded()
     {
-        var edits = CollectEdits();
+        var mods = _modLoader.GetActiveMods().Select(m => m.Generic.ModId).Select(id => (id, _modLoader.GetDirectoryForModId(id)));
+        var edits = _collector.Collect(mods, Log);
         ReadWatcher.Config? watch = null;
         try
         {
@@ -45,35 +52,11 @@ public class Startup : IMod
             Log("watch.json: " + error.Message);
         }
         if (edits.IsEmpty)
-            Log("no enabled mod has " + TablesFile);
+            Log("no enabled mod has table edits");
         if (edits.IsEmpty && watch is null)
             return;
         // The game may still be unpacking its data; don't hold up startup.
         new Thread(() => Apply(edits, watch)) { IsBackground = true, Name = "TIC Loader" }.Start();
-    }
-
-    private TableEdits CollectEdits()
-    {
-        var merged = new TableEdits();
-        foreach (var mod in _modLoader.GetActiveMods())
-        {
-            var id = mod.Generic.ModId;
-            var path = Path.Combine(_modLoader.GetDirectoryForModId(id), TablesFile);
-            if (!File.Exists(path))
-                continue;
-            try
-            {
-                var edits = TableEdits.Parse(File.ReadAllText(path));
-                merged.Merge(edits);
-                Log($"{id}: {edits.All.Count()} change(s)");
-            }
-            catch (Exception error) when (error is FormatException or IOException or System.Text.Json.JsonException)
-            {
-                // One broken mod shouldn't take the others down with it.
-                Log($"{id}: skipped, {error.Message}");
-            }
-        }
-        return merged;
     }
 
     private string OwnFolder => _modLoader.GetDirectoryForModId(_config.ModId);
@@ -116,6 +99,7 @@ public class Startup : IMod
                 build = null;
             }
             Log(build is null ? "unknown game version: only jobs can be edited" : $"game version: {build.Name}");
+            _api.GameVersion = build?.Name;
 
             foreach (var table in edits.ChangedTables)
             {
@@ -127,6 +111,7 @@ public class Startup : IMod
                 else
                     Log($"{table}: skipped, not located in this game version");
             }
+            _api.RaiseTablesApplied(Log);
 
             if (watch is not null)
             {

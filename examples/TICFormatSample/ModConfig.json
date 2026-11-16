@@ -1,0 +1,21 @@
+{
+  "ModId": "tic.example.csvformat",
+  "ModName": "Example: CSV format for TIC Loader",
+  "ModAuthor": "TIC Patcher contributors",
+  "ModVersion": "1.0.0",
+  "ModDescription": "Sample bridge: teaches TIC Loader to read TIC/tables.csv in any enabled mod. A starting point for bridges to other mod formats.",
+  "ModDll": "tic.example.csvformat.dll",
+  "ModIcon": "",
+  "ModR2RManagedDll32": "",
+  "ModR2RManagedDll64": "",
+  "ModNativeDll32": "",
+  "ModNativeDll64": "",
+  "IsLibrary": false,
+  "ReleaseMetadataFileName": "tic.example.csvformat.ReleaseMetadata.json",
+  "PluginData": {},
+  "IsUniversalMod": false,
+  "ModDependencies": [ "tic.loader" ],
+  "OptionalDependencies": [],
+  "SupportedAppId": [ "fft_enhanced.exe" ],
+  "ProjectUrl": "https://github.com/skateboardingr/TIC-Patcher"
+}

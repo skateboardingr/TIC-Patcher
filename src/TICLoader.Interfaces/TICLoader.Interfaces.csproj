@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The public API of TIC Loader, for other Reloaded-II mods (format bridges, tools).
+       Small and dependency-free on purpose: reference this, depend on the tic.loader mod,
+       and get ITICLoader from Reloaded-II's GetController. See docs/bridge.md. -->
+  <PropertyGroup>
+    <RootNamespace>TICLoader.Interfaces</RootNamespace>
+    <PackageId>TICLoader.Interfaces</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Interfaces for extending TIC Loader, the FINAL FANTASY TACTICS - The Ivalice Chronicles mod loader of TIC Patcher.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

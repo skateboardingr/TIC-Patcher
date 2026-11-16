@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A sample TIC Loader bridge: a Reloaded-II mod that teaches TIC Loader a new mod
+       format (here, a simple TIC/tables.csv). Copy this project to write your own;
+       see docs/bridge.md. Builds to bin/<Configuration>/tic.example.csvformat. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <AssemblyName>tic.example.csvformat</AssemblyName>
+    <RootNamespace>TICFormatSample</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <OutputPath>bin/$(Configuration)/tic.example.csvformat</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="ModConfig.json" CopyToOutputDirectory="Always" />
+    <Content Include="TIC/tables.csv" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reloaded-II and TIC Loader supply these at run time. -->
+    <PackageReference Include="Reloaded.Mod.Interfaces" Version="2.4.0" ExcludeAssets="runtime" />
+    <ProjectReference Include="../../src/TICLoader.Interfaces/TICLoader.Interfaces.csproj" Private="false" />
+  </ItemGroup>
+
+</Project>

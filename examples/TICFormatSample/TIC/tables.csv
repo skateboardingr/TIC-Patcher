@@ -1,0 +1,3 @@
+# Table, record id, field, value. One edit per line; # starts a comment.
+# This one gives Ramza (job 0x01) Jump 4, so you can see the bridge working.
+Jobs,0x01,Jump,4

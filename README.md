@@ -21,6 +21,8 @@ Early research. Working so far:
 
 Next: feature parity with FFTPatcher. [docs/parity.md](docs/parity.md) tracks what's done and what's left.
 
+Other Reloaded-II mods can extend TIC Loader, e.g. a bridge that loads mods made in another format: see [docs/bridge.md](docs/bridge.md) and the sample in [examples/TICFormatSample](examples/TICFormatSample).
+
 ## Making a mod
 
 A TIC mod is an ordinary Reloaded-II mod folder with no code, depending on `tic.loader`, plus a `TIC/tables.json` listing only the values it changes:

@@ -33,7 +33,7 @@ public sealed class TableEdits
         var schema = KnownTables.TryGetValue(table, out var s) ? s : throw new FormatException($"Unknown table \"{table}\"");
         if (record < schema.FirstId || record >= schema.FirstId + schema.RecordCount)
             throw new FormatException($"{table}: record 0x{record:X2} is outside 0x{schema.FirstId:X2}-0x{schema.FirstId + schema.RecordCount - 1:X2}");
-        var def = schema.Fields.FirstOrDefault(f => f.Name == field) ?? throw new FormatException($"{table}: unknown field \"{field}\"");
+        var def = FieldFor(schema, field) ?? throw new FormatException($"{table}: unknown field \"{field}\"");
         // Validate the value now, so a bad mod is reported when it loads, not mid-apply.
         try
         {
@@ -49,6 +49,19 @@ public sealed class TableEdits
         if (!records.TryGetValue(record, out var fields))
             records[record] = fields = new Dictionary<string, string>(StringComparer.Ordinal);
         fields[field] = value;
+    }
+
+    /// <summary>
+    /// A field by name, or "+N" for the raw byte at offset N of the record, for
+    /// bytes that have no name yet (e.g. when a bridge maps another format by offset).
+    /// </summary>
+    public static FieldDef? FieldFor(TableSchema schema, string field)
+    {
+        if (field.StartsWith('+'))
+            return int.TryParse(field.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var offset) && offset < schema.RecordSize
+                ? FieldDef.U8(field, offset)
+                : null;
+        return schema.Fields.FirstOrDefault(f => f.Name == field);
     }
 
     public bool Remove(string table, int record, string field)
@@ -74,7 +87,7 @@ public sealed class TableEdits
     public string ToJson()
     {
         using var stream = new MemoryStream();
-        using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             json.WriteStartObject();
             foreach (var schema in KnownTables.Values.Where(s => _edits.ContainsKey(s.Name)))
@@ -83,7 +96,8 @@ public sealed class TableEdits
                 foreach (var (record, fields) in _edits[schema.Name])
                 {
                     json.WriteStartObject($"0x{record:X2}");
-                    foreach (var def in schema.Fields.Where(f => fields.ContainsKey(f.Name)))
+                    var raw = fields.Keys.Where(f => f.StartsWith('+')).OrderBy(f => int.Parse(f.AsSpan(1), CultureInfo.InvariantCulture));
+                    foreach (var def in schema.Fields.Where(f => fields.ContainsKey(f.Name)).Concat(raw.Select(f => FieldFor(schema, f)!)))
                     {
                         var value = fields[def.Name];
                         if (def.Kind == FieldKind.Flags)
@@ -123,9 +137,10 @@ public sealed class TableEdits
         foreach (var (record, fields) in records)
         {
             var bytes = tableBytes.Slice((record - schema.FirstId) * recordSize, schema.RecordSize);
-            foreach (var (field, value) in fields)
+            // Named fields first, then raw bytes ("+N"), so a raw byte can refine a named field.
+            foreach (var (field, value) in fields.OrderBy(f => f.Key.StartsWith('+')))
             {
-                RecordCodec.Write(schema.Field(field), bytes, value);
+                RecordCodec.Write(FieldFor(schema, field)!, bytes, value);
                 applied++;
             }
         }

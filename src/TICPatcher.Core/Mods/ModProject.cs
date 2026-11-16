@@ -29,7 +29,7 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
 
     public bool IsChanged(TableSchema schema, int id, string field) => Edits.Get(schema.Name, id, field) is not null;
 
-    public bool IsChanged(TableSchema schema, int id) => schema.Fields.Any(f => IsChanged(schema, id, f.Name));
+    public bool IsChanged(TableSchema schema, int id) => Edits.All.Any(e => e.Table == schema.Name && e.Record == id);
 
     /// <summary>Sets a field; throws FormatException for a value the field can't hold.</summary>
     public void Set(TableSchema schema, int id, string field, string value)
@@ -44,8 +44,9 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
 
     public void Revert(TableSchema schema, int id)
     {
-        foreach (var field in schema.Fields)
-            Edits.Remove(schema.Name, id, field.Name);
+        // All of the record's edits, including raw bytes ("+N") from imported mods.
+        foreach (var (_, _, field, _) in Edits.All.Where(e => e.Table == schema.Name && e.Record == id).ToList())
+            Edits.Remove(schema.Name, id, field);
         Changed?.Invoke();
     }
 
