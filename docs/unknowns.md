@@ -85,3 +85,17 @@ Then play normally. `watch-report.txt` appears next to it, updated every 30 seco
 - **Abilities (common)**: the AI reads byte 4 heavily (`+0x320805`) and byte 5 once per ability (`+0x38AC87`). The report shows where reads start, not their width, so byte 6 may be covered by wider reads. The code at those addresses (`tools/Disasm`) settles it.
 
 The unit's support flags include `[unit+0x99] & 0x40` = JP Boost.
+
+### Bonus items (2026-11-16)
+
+The user pointed out that the preorder bonus items had JP and EXP boosts and that their save has them. The item attribute table turned out to have 85 entries, not the PSP's 80. The extra five (0x50-0x54) belong to the remaster's bonus items:
+
+| Attributes | Effect | Item (+0x680510, 12-byte records) |
+|---|---|---|
+| 0x54 | MA +4 | sword (Weapon, Rare, type 3) |
+| 0x51 | Speed +1 | sword (Weapon, Rare, type 3) |
+| 0x52 | one status immunity (byte 14 = 0x20) | clothing (Body, Rare, type 0x15) |
+| 0x53 | one permanent status (byte 8 = 0x10) | robe (Body, Rare, type 0x18) |
+| 0x50 | **JPBoost = 1** | accessory (Rare, type 0x1C) |
+
+Their weapon data is just before them (+0x680500, 8-byte records: range 1, power 16 and 6, evade 10). A list of item-id boundaries nearby (…0xD0, 0xF0, 0x100…) suggests ids 0x100-0x104. No EXP-boost byte has turned up yet. If one of these gives EXP Boost, it's done another way. Next: names, and checking these in play.

@@ -22,6 +22,16 @@ using TICPatcher.Core.Tables.Schemas;
 if (args.Length >= 4 && args[0] == "--image")
     return ImageViewer.Show(args[1], args[2], args[3..]);
 
+// TICScan --copies <table> [process]: finds copies of a table elsewhere in the
+// running game's memory (e.g. one the game builds at run time), by its first bytes.
+if (args.Length >= 2 && args[0] == "--copies")
+{
+    if (!OperatingSystem.IsWindows())
+        return 2;
+    var game = Process.GetProcessesByName(args.Length > 2 ? args[2] : "fft_enhanced").FirstOrDefault();
+    return game is null ? 1 : Copies.Find(game, args[1]);
+}
+
 if (!OperatingSystem.IsWindows())
 {
     Console.Error.WriteLine("TICScan reads another process's memory and needs Windows.");
@@ -162,5 +172,50 @@ static class ImageViewer
             Console.WriteLine($"  0x{id:X2}: " + string.Join("; ", schema.Fields.Select(f => $"{f.Name}={RecordCodec.Read(f, record)}")));
         }
         return 0;
+    }
+}
+
+[SupportedOSPlatform("windows")]
+static class Copies
+{
+    public static int Find(Process game, string table)
+    {
+        var module = game.MainModule!;
+        var start = (long)module.BaseAddress;
+        var end = start + module.ModuleMemorySize;
+        var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+        try
+        {
+            var memory = new ProcessMemory(handle);
+            var build = GameBuilds.Identify(memory.Read(start, 0x1000)) ?? throw new NotSupportedException("unknown game version");
+            var schema = AllTables.ByName[table];
+            var original = memory.Read(start + build.Tables[table], schema.Length);
+            // Skip the first records (often blank); look for a distinctive run.
+            var probe = original.AsSpan(schema.RecordSize * 1, Math.Min(96, schema.Length - schema.RecordSize)).ToArray();
+            Console.WriteLine($"{table}: original at module +0x{build.Tables[table]:X}; searching all memory for copies");
+            var found = 0;
+            foreach (var (blockStart, bytes) in memory.ContiguousBlocks(0, long.MaxValue))
+            {
+                var span = bytes.AsSpan();
+                for (var at = span.IndexOf(probe); at >= 0; )
+                {
+                    var copy = blockStart + at - schema.RecordSize;
+                    var where = copy >= start && copy < end ? $"module +0x{copy - start:X}" : "outside the module";
+                    var same = at - schema.RecordSize >= 0 && at - schema.RecordSize + schema.Length <= span.Length
+                        ? span.Slice(at - schema.RecordSize, schema.Length).SequenceEqual(original) ? "identical" : "differs further on"
+                        : "cut off";
+                    Console.WriteLine($"  0x{copy:X} ({where}), {same}");
+                    found++;
+                    var next = span[(at + 1)..].IndexOf(probe);
+                    at = next < 0 ? -1 : at + 1 + next;
+                }
+            }
+            Console.WriteLine($"{found} place(s).");
+            return 0;
+        }
+        finally
+        {
+            ProcessMemory.Native.CloseHandle(handle);
+        }
     }
 }
