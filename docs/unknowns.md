@@ -90,12 +90,14 @@ The unit's support flags include `[unit+0x99] & 0x40` = JP Boost.
 
 The user pointed out that the preorder bonus items had JP and EXP boosts and that their save has them. The item attribute table turned out to have 85 entries, not the PSP's 80. The extra five (0x50-0x54) belong to the remaster's bonus items:
 
-| Attributes | Effect | Item (+0x680510, 12-byte records) |
-|---|---|---|
-| 0x54 | MA +4 | sword (Weapon, Rare, type 3) |
-| 0x51 | Speed +1 | sword (Weapon, Rare, type 3) |
-| 0x52 | one status immunity (byte 14 = 0x20) | clothing (Body, Rare, type 0x15) |
-| 0x53 | one permanent status (byte 8 = 0x10) | robe (Body, Rare, type 0x18) |
-| 0x50 | **JPBoost = 1** | accessory (Rare, type 0x1C): **Ring of Aptitude** |
+| Attributes | Effect | Item (+0x680510, 12-byte records) | Name in game |
+|---|---|---|---|
+| 0x54 | MA +4 | 0x100 sword, power 16 | not seen yet |
+| 0x51 | Speed +1 | 0x101 sword, power 6, evade 10 | **Akademy Blade** |
+| 0x52 | immune to Charm | 0x102 hat (type 21) | **Akademy Beret** |
+| 0x53 | permanent Shell | 0x103 clothing (type 24) | **Akademy Tunic** |
+| 0x50 | **JPBoost = 1** | 0x104 ring (type 28) | **Ring of Aptitude** |
+
+Names, stats and effects were confirmed from the in-game item pages (screenshots from the user, 2026-11-16). `ItemType` follows the equipment list (3 Sword, 21 Hat, 24 Clothing, 28 Ring). The beret and tunic both have the Body flag set. Their +20 HP is in armor data not yet located for the bonus items.
 
 Their weapon data is just before them (+0x680500, 8-byte records: range 1, power 16 and 6, evade 10). A list of item-id boundaries nearby (…0xD0, 0xF0, 0x100…) suggests ids 0x100-0x104. The Ring of Aptitude's in-game description ("increases the amount of JP and Job EXP earned during battle… does not multiply with other traits that provide the same benefit. (Bonus item)") matches byte 25's code: JP x1.5, not stacking with JP Boost. "Job EXP" is probably JP; no separate EXP-boost check has turned up. If one of these gives EXP Boost, it's done another way. Next: names, and checking these in play.

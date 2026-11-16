@@ -102,6 +102,9 @@ public static class Items
     /// </summary>
     public static readonly IReadOnlyDictionary<int, string> BonusNames = new Dictionary<int, string>
     {
+        [0x101] = "Akademy Blade",
+        [0x102] = "Akademy Beret",
+        [0x103] = "Akademy Tunic",
         [0x104] = "Ring of Aptitude",
     };
 
@@ -112,7 +115,7 @@ public static class Items
         Source = "Found in TIC by its attribute ids; layout as FFTPatcher Datatypes/Items/Item.cs",
     };
 
-    /// <summary>Weapon data for the two bonus swords, stored just before <see cref="Bonus"/>.</summary>
+    /// <summary>Weapon data for the two bonus swords (0x101 is the Akademy Blade), stored just before <see cref="Bonus"/>.</summary>
     public static readonly TableSchema BonusWeapons = Weapons with
     {
         Name = "BonusWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = null,
