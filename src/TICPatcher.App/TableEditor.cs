@@ -109,6 +109,8 @@ public sealed class TableEditor : UserControl
             VerticalAlignment = VerticalAlignment.Center,
         });
         _fields.Children.Add(header);
+        if (FieldNotes.For(_schema.Name) is { } tableNote)
+            _fields.Children.Add(new TextBlock { Text = tableNote, TextWrapping = TextWrapping.Wrap, Opacity = 0.7, Margin = new Thickness(0, 0, 0, 6) });
 
         foreach (var field in _schema.Fields)
             _fields.Children.Add(FieldRow(id, field));
@@ -127,7 +129,8 @@ public sealed class TableEditor : UserControl
         };
         if (changed)
             label.Foreground = ChangedBrush;
-        ToolTip.SetTip(label, $"Original: {Show(field, _project.Original(_schema, id, field.Name))}");
+        var original = $"Original: {Show(field, _project.Original(_schema, id, field.Name))}";
+        ToolTip.SetTip(label, FieldNotes.For(_schema.Name, field.Name) is { } note ? $"{note}\n\n{original}" : original);
 
         var row = new DockPanel();
         DockPanel.SetDock(label, Dock.Left);
@@ -151,6 +154,11 @@ public sealed class TableEditor : UserControl
             foreach (var name in (field.FlagNames ?? []).OfType<string>())
             {
                 var box = new CheckBox { Content = name, IsChecked = set.Contains(name), Margin = new Thickness(0, 0, 12, 0) };
+                if (FieldNotes.For(_schema.Name, field.Name, name) is { } note)
+                {
+                    ToolTip.SetTip(box, note);
+                    box.FontStyle = FontStyle.Italic;
+                }
                 box.IsCheckedChanged += (_, _) =>
                 {
                     var on = panel.Children.OfType<CheckBox>().Where(b => b.IsChecked == true).Select(b => (string)b.Content!);
