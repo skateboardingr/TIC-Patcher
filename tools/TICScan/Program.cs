@@ -17,6 +17,11 @@ using TICPatcher.Core.Tables.Schemas;
 // unreadable gaps zero-filled, so offsets in the file are module offsets.
 // It's for offline research only; never share it (it is the game's code).
 
+// TICScan --image <image.bin> <table> <id>... prints records, all fields,
+// from a --dump file of a known game version. Works on any OS.
+if (args.Length >= 4 && args[0] == "--image")
+    return ImageViewer.Show(args[1], args[2], args[3..]);
+
 if (!OperatingSystem.IsWindows())
 {
     Console.Error.WriteLine("TICScan reads another process's memory and needs Windows.");
@@ -130,5 +135,32 @@ static class Scanner
         var record = bytes.AsSpan((int)(match.Offset + (long)job * match.RecordSize), Jobs.Schema.RecordSize).ToArray();
         var fields = new[] { "HPConstant", "HPMultiplier", "PAConstant", "PAMultiplier", "Move", "Jump", "CEvade", "Equipment" };
         Console.WriteLine($"    {label} (0x{job:X2}): " + string.Join(", ", fields.Select(f => $"{f}={RecordCodec.Read(Jobs.Schema.Field(f), record)}")));
+    }
+}
+
+static class ImageViewer
+{
+    public static int Show(string path, string table, string[] ids)
+    {
+        var image = File.ReadAllBytes(path);
+        var build = GameBuilds.Identify(image);
+        if (build is null)
+        {
+            Console.Error.WriteLine("Unknown game version.");
+            return 1;
+        }
+        if (!AllTables.ByName.TryGetValue(table, out var schema) || !build.Tables.TryGetValue(table, out var offset))
+        {
+            Console.Error.WriteLine($"Unknown table {table}. Tables: {string.Join(", ", build.Tables.Keys)}");
+            return 2;
+        }
+        Console.WriteLine($"{build.Name}: {table} at +0x{offset:X}");
+        foreach (var text in ids)
+        {
+            var id = Convert.ToInt32(text, 16);
+            var record = image.AsSpan((int)(offset + (long)(id - schema.FirstId) * schema.RecordSize), schema.RecordSize).ToArray();
+            Console.WriteLine($"  0x{id:X2}: " + string.Join("; ", schema.Fields.Select(f => $"{f.Name}={RecordCodec.Read(f, record)}")));
+        }
+        return 0;
     }
 }

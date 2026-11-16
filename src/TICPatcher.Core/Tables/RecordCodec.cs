@@ -11,6 +11,8 @@ public static class RecordCodec
         FieldKind.Byte => record[field.Offset].ToString(),
         FieldKind.UInt16 => (record[field.Offset] | record[field.Offset + 1] << 8).ToString(),
         FieldKind.Flags => string.Join(", ", ReadFlags(field, record)),
+        FieldKind.Bits => ((record[field.Offset] & field.Mask) >> Shift(field.Mask)).ToString(),
+        FieldKind.AbilityId => (record[field.Offset] | ((record[field.HighOffset] & field.HighMask) != 0 ? 0x100 : 0)).ToString(),
         _ => throw new NotSupportedException(field.Kind.ToString()),
     };
 
@@ -50,10 +52,29 @@ public static class RecordCodec
                         SetBit(record, field.Offset, bit, wanted.Contains(name));
                 }
                 break;
+            case FieldKind.Bits:
+                var bits = byte.Parse(value.Trim());
+                var max = field.Mask >> Shift(field.Mask);
+                if (bits > max)
+                    throw new OverflowException($"{field.Name} is at most {max}");
+                record[field.Offset] = (byte)((record[field.Offset] & ~field.Mask) | (bits << Shift(field.Mask)));
+                break;
+            case FieldKind.AbilityId:
+                var id = ushort.Parse(value.Trim());
+                if (id > 0x1FF)
+                    throw new OverflowException($"{field.Name} is at most 511 (0x1FF)");
+                record[field.Offset] = (byte)id;
+                if (id > 0xFF)
+                    record[field.HighOffset] |= field.HighMask;
+                else
+                    record[field.HighOffset] &= (byte)~field.HighMask;
+                break;
             default:
                 throw new NotSupportedException(field.Kind.ToString());
         }
     }
+
+    private static int Shift(byte mask) => System.Numerics.BitOperations.TrailingZeroCount(mask);
 
     private static bool IsSet(ReadOnlySpan<byte> record, int offset, int bit) =>
         (record[offset + bit / 8] & (0x80 >> (bit % 8))) != 0;

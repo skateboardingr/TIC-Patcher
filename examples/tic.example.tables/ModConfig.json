@@ -1,0 +1,21 @@
+{
+  "ModId": "tic.example.tables",
+  "ModName": "Example: cheap Potions and Cure",
+  "ModAuthor": "TIC Patcher contributors",
+  "ModVersion": "1.0.0",
+  "ModDescription": "Example TIC Patcher mod: Potions cost 10 gil and Cure costs 1 MP. Needs TIC Loader.",
+  "ModDll": "",
+  "ModIcon": "",
+  "ModR2RManagedDll32": "",
+  "ModR2RManagedDll64": "",
+  "ModNativeDll32": "",
+  "ModNativeDll64": "",
+  "IsLibrary": false,
+  "ReleaseMetadataFileName": "",
+  "PluginData": {},
+  "IsUniversalMod": false,
+  "ModDependencies": [ "tic.loader" ],
+  "OptionalDependencies": [],
+  "SupportedAppId": [ "fft_enhanced.exe" ],
+  "ProjectUrl": "https://github.com/skateboardingr/TIC-Patcher"
+}

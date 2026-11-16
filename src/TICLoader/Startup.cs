@@ -4,6 +4,7 @@ using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
 using TICPatcher.Core.Memory;
 using TICPatcher.Core.Mods;
+using TICPatcher.Core.Tables;
 using TICPatcher.Core.Tables.Schemas;
 
 namespace TICPatcher.Loader;
@@ -73,24 +74,13 @@ public class Startup : IMod
             var moduleStart = (long)module.BaseAddress;
             var moduleEnd = moduleStart + module.ModuleMemorySize;
             var memory = ProcessMemory.Current;
+
+            // The job table is found by its fingerprint, which needs no stored
+            // offsets; finding it also tells us the game's data is unpacked.
             var waited = Stopwatch.StartNew();
-            while (true)
+            List<(long Address, byte[] Table)> found;
+            while ((found = FindJobTable(memory, moduleStart, moduleEnd)).Count == 0)
             {
-                var found = FindJobTable(memory, moduleStart, moduleEnd);
-                if (found.Count == 1)
-                {
-                    var (address, before) = found[0];
-                    var after = (byte[])before.Clone();
-                    var applied = edits.ApplyTo(Jobs.Schema.Name, after, Jobs.Schema.RecordSize);
-                    var bytes = memory.WriteChanges(address, before, after);
-                    Log($"Jobs: {applied} field(s) applied, {bytes} byte(s) changed at module +0x{address - moduleStart:X}");
-                    return;
-                }
-                if (found.Count > 1)
-                {
-                    Log($"Jobs: found {found.Count} possible tables, not guessing; nothing changed");
-                    return;
-                }
                 if (waited.Elapsed > GiveUpAfter)
                 {
                     Log("Jobs: table not found; this game version may not be supported yet. Nothing changed.");
@@ -98,11 +88,48 @@ public class Startup : IMod
                 }
                 Thread.Sleep(500);
             }
+            if (found.Count > 1)
+            {
+                Log($"Jobs: found {found.Count} possible tables, not guessing; nothing changed");
+                return;
+            }
+            var jobs = found[0].Address - moduleStart;
+
+            // Other tables need this exact game version's offsets, and the job
+            // table must be where that version says, or nothing else is touched.
+            var build = GameBuilds.Identify(memory.Read(moduleStart, 0x1000));
+            if (build is not null && build.Tables[Jobs.Schema.Name] != jobs)
+            {
+                Log($"{build.Name}: job table isn't where expected (+0x{jobs:X}); only editing jobs");
+                build = null;
+            }
+            Log(build is null ? "unknown game version: only jobs can be edited" : $"game version: {build.Name}");
+
+            foreach (var table in edits.ChangedTables)
+            {
+                var schema = TableEdits.KnownTables[table];
+                if (table == Jobs.Schema.Name)
+                    ApplyTable(memory, schema, edits, moduleStart, jobs);
+                else if (build is not null && build.Tables.TryGetValue(table, out var offset))
+                    ApplyTable(memory, schema, edits, moduleStart, offset);
+                else
+                    Log($"{table}: skipped, not located in this game version");
+            }
         }
         catch (Exception error)
         {
             Log("failed: " + error);
         }
+    }
+
+    private void ApplyTable(ProcessMemory memory, TableSchema schema, TableEdits edits, long moduleStart, long offset)
+    {
+        var address = moduleStart + offset;
+        var before = memory.Read(address, schema.Length);
+        var after = (byte[])before.Clone();
+        var applied = edits.ApplyTo(schema.Name, after, schema.RecordSize);
+        var bytes = memory.WriteChanges(address, before, after);
+        Log($"{schema.Name}: {applied} field(s) applied, {bytes} byte(s) changed at module +0x{offset:X}");
     }
 
     private static List<(long Address, byte[] Table)> FindJobTable(ProcessMemory memory, long from, long to)

@@ -58,7 +58,7 @@ public class LoaderTests
     }
 
     [Theory]
-    [InlineData("""{ "Items": { "0x01": { "Price": 1 } } }""", "Unknown table")]
+    [InlineData("""{ "Spells": { "0x01": { "Price": 1 } } }""", "Unknown table")]
     [InlineData("""{ "Jobs": { "0xFF": { "Move": 6 } } }""", "outside")]
     [InlineData("""{ "Jobs": { "0x01": { "Speed": 6 } } }""", "unknown field")]
     [InlineData("""{ "Jobs": { "0x01": { "Move": 300 } } }""", "isn't valid")]

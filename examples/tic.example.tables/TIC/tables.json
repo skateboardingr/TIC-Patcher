@@ -1,0 +1,9 @@
+// Edits two tables besides jobs, easy to check in the game's menus.
+{
+  "Items": {
+    "0xF0": { "Price": 10 }          // Potion, normally 50
+  },
+  "ActionAbilities": {
+    "0x01": { "MPCost": 1 }          // Cure, normally 6
+  }
+}

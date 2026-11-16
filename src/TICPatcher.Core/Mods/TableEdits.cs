@@ -18,8 +18,7 @@ public sealed class TableEdits
     // table -> record -> field -> value
     private readonly Dictionary<string, SortedDictionary<int, Dictionary<string, string>>> _edits = new(StringComparer.Ordinal);
 
-    public static IReadOnlyDictionary<string, TableSchema> KnownTables { get; } =
-        new Dictionary<string, TableSchema> { [Tables.Schemas.Jobs.Schema.Name] = Tables.Schemas.Jobs.Schema };
+    public static IReadOnlyDictionary<string, TableSchema> KnownTables => Tables.Schemas.AllTables.ByName;
 
     public bool IsEmpty => _edits.Count == 0;
 
@@ -32,8 +31,8 @@ public sealed class TableEdits
     public void Set(string table, int record, string field, string value)
     {
         var schema = KnownTables.TryGetValue(table, out var s) ? s : throw new FormatException($"Unknown table \"{table}\"");
-        if (record < 0 || record >= schema.RecordCount)
-            throw new FormatException($"{table}: record 0x{record:X2} is outside 0x00-0x{schema.RecordCount - 1:X2}");
+        if (record < schema.FirstId || record >= schema.FirstId + schema.RecordCount)
+            throw new FormatException($"{table}: record 0x{record:X2} is outside 0x{schema.FirstId:X2}-0x{schema.FirstId + schema.RecordCount - 1:X2}");
         var def = schema.Fields.FirstOrDefault(f => f.Name == field) ?? throw new FormatException($"{table}: unknown field \"{field}\"");
         // Validate the value now, so a bad mod is reported when it loads, not mid-apply.
         try
@@ -59,7 +58,13 @@ public sealed class TableEdits
             Set(table, record, field, value);
     }
 
-    /// <summary>Applies the edits for one table to its bytes in place.</summary>
+    /// <summary>The tables these edits change.</summary>
+    public IEnumerable<string> ChangedTables => _edits.Keys;
+
+    /// <summary>
+    /// Applies the edits for one table to its bytes in place. Record ids are
+    /// the game's (see <see cref="TableSchema.FirstId"/>).
+    /// </summary>
     public int ApplyTo(string table, Span<byte> tableBytes, int recordSize)
     {
         if (!_edits.TryGetValue(table, out var records))
@@ -68,7 +73,7 @@ public sealed class TableEdits
         var applied = 0;
         foreach (var (record, fields) in records)
         {
-            var bytes = tableBytes.Slice(record * recordSize, schema.RecordSize);
+            var bytes = tableBytes.Slice((record - schema.FirstId) * recordSize, schema.RecordSize);
             foreach (var (field, value) in fields)
             {
                 RecordCodec.Write(schema.Field(field), bytes, value);

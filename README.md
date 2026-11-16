@@ -34,7 +34,7 @@ A TIC mod is an ordinary Reloaded-II mod folder with no code, depending on `tic.
 }
 ```
 
-Field names and flag names are the ones in [Jobs.cs](src/TICPatcher.Core/Tables/Schemas/Jobs.cs). A mistake (unknown field, value out of range) is reported in Reloaded-II's log and that mod is skipped; the others still load. See [examples/tic.example.ramzamove](examples/tic.example.ramzamove).
+Jobs, abilities, skill sets, items, statuses, shops and more can be edited; [docs/tables.md](docs/tables.md) lists the table names, and the field names are in [the schemas](src/TICPatcher.Core/Tables/Schemas). A mistake (unknown field, value out of range) is reported in Reloaded-II's log and that mod is skipped; the others still load. See [examples/tic.example.ramzamove](examples/tic.example.ramzamove).
 
 ## Sources
 

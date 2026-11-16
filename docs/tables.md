@@ -8,9 +8,9 @@ Record layouts and names follow FFTPatcher (Glain, Joe Davidson); see [findings.
 
 | Table | Offset | Records × size | Match | Notes |
 |---|---|---|---|---|
-| Ability action events | +0x67E010 | 227 bytes | 100% | |
+| Action menus | +0x67E010 | 227 × 1 | 100% | FFTPatcher calls the file ActionEvents |
 | Skill sets | +0x67E210 | 4475 bytes | 99.7% | |
-| Job levels (JP) | +0x67F390 | 280 bytes | 94.3% | values changed in the remaster |
+| Job unlock requirements | +0x67F390 | 22 × 12 | 100% of these | the PSP file's last 16 bytes, JP per level, are a pointer here; JP per level not found yet |
 | Monster skills | +0x67F4C0 | 240 bytes | 99.2% | |
 | Job formation sprites 1 | +0x67F840 | 74 bytes | 98.6% | exact copy also at +0x1930C34 |
 | Shop inventories | +0x67F890 | 512 bytes | 100% | exact copy also at +0x1930644; which one the game reads is untested |
@@ -32,7 +32,17 @@ Record layouts and names follow FFTPatcher (Glain, Joe Davidson); see [findings.
 | Inflict statuses | +0x80FBA0 | 128 × 6 | 100% | |
 | **Item attributes** | +0x80FEA0 | 0x50 × **26** | 100% of the first 25 | PSP records are 25 bytes; one byte is added at the end |
 
+## Names in tables.json
+
+`Jobs`, `JobRequirements`, `SkillSets` (0x00-0xAF), `SkillSetsExtra` (0xE0-0xE2), `MonsterSkills` (0xB0-0xDF), `ActionMenus`, `Abilities` (common data, 0x000-0x1FF), `ActionAbilities` (0x000-0x16F), `ThrowAbilities`, `JumpAbilities`, `ChargeAbilities`, `AbilityEffects`, `AbilityAnimations`, `Items` (0x00-0xFF), `Weapons`, `Shields`, `Armor`, `Accessories`, `ChemistItems`, `ItemAttributes`, `ShopInventories`, `StatusAttributes`, `InflictStatuses`.
+
+Record ids are the game's own: armor starts at 0x90, charge abilities at 0x196 and so on. Fields are listed in `src/TICPatcher.Core/Tables/Schemas`. Check a table against a memory copy with `TICScan --image <file> <table> <id>...`.
+
+Checked against well-known values in a memory copy (2026-11-16): Dagger price 100, weapon power 3; Potion 50, Phoenix Down 300; Leather Helm +10 HP; Escutcheon 10/3 block; Cure and Fire range 4, CT 4, 6 MP; Haste CT 2, 8 MP; Chemist's skill set is the item abilities 368-381; Knight needs Squire level 2. Live edits of tables other than jobs are not tested yet.
+
 ## Not found in the executable
+
+- **JP needed per job level**: the PSP values (100, 200, 400 ... 3000) aren't in the executable as 16-bit numbers.
 
 - **PSP-only items and item attributes** (ids 0x100 and up) and **poaching**: no match at any record size from 12 to 36 bytes. Probably loaded from the game's data files at run time, or not present.
 - **Move-find items** and **ENTD** (battle unit setups): not in the executable; most likely in the data files.
