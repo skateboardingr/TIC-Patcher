@@ -96,6 +96,6 @@ The user pointed out that the preorder bonus items had JP and EXP boosts and tha
 | 0x51 | Speed +1 | sword (Weapon, Rare, type 3) |
 | 0x52 | one status immunity (byte 14 = 0x20) | clothing (Body, Rare, type 0x15) |
 | 0x53 | one permanent status (byte 8 = 0x10) | robe (Body, Rare, type 0x18) |
-| 0x50 | **JPBoost = 1** | accessory (Rare, type 0x1C) |
+| 0x50 | **JPBoost = 1** | accessory (Rare, type 0x1C): **Ring of Aptitude** |
 
-Their weapon data is just before them (+0x680500, 8-byte records: range 1, power 16 and 6, evade 10). A list of item-id boundaries nearby (…0xD0, 0xF0, 0x100…) suggests ids 0x100-0x104. No EXP-boost byte has turned up yet. If one of these gives EXP Boost, it's done another way. Next: names, and checking these in play.
+Their weapon data is just before them (+0x680500, 8-byte records: range 1, power 16 and 6, evade 10). A list of item-id boundaries nearby (…0xD0, 0xF0, 0x100…) suggests ids 0x100-0x104. The Ring of Aptitude's in-game description ("increases the amount of JP and Job EXP earned during battle… does not multiply with other traits that provide the same benefit. (Bonus item)") matches byte 25's code: JP x1.5, not stacking with JP Boost. "Job EXP" is probably JP; no separate EXP-boost check has turned up. If one of these gives EXP Boost, it's done another way. Next: names, and checking these in play.

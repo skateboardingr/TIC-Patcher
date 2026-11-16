@@ -97,12 +97,18 @@ public static class Items
     /// <summary>
     /// The remaster's bonus items (preorder/DLC): five items stored apart from
     /// the main 256, using item attributes 0x50-0x54. Their ids are probably
-    /// 0x100-0x104 (a list of item-id boundaries next to them ends at 0x100);
-    /// names aren't known yet.
+    /// 0x100-0x104 (a list of item-id boundaries next to them ends at 0x100).
+    /// Names as the game shows them, where known.
     /// </summary>
+    public static readonly IReadOnlyDictionary<int, string> BonusNames = new Dictionary<int, string>
+    {
+        [0x104] = "Ring of Aptitude",
+    };
+
     public static readonly TableSchema Bonus = Common with
     {
         Name = "BonusItems", RecordCount = 5, FirstId = 0x100, RecordNames = null,
+        RecordName = id => BonusNames.GetValueOrDefault(id),
         Source = "Found in TIC by its attribute ids; layout as FFTPatcher Datatypes/Items/Item.cs",
     };
 

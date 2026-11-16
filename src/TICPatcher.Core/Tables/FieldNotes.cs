@@ -35,7 +35,7 @@ public static class FieldNotes
         ["ActionAbilities.New17"] = NewAbilityBytes,
         ["ActionAbilities.New18"] = NewAbilityBytes,
         ["ActionAbilities.New19"] = NewAbilityBytes,
-        ["ItemAttributes.JPBoost"] = "New in The Ivalice Chronicles: non-zero gives the wearer JP Boost (JP from actions x1.5, Accrue JP doubled; doesn't stack with the support ability). Read from the game's code; not yet tested in play. 0 on every original item.",
+        ["ItemAttributes.JPBoost"] = "New in The Ivalice Chronicles: non-zero gives the wearer JP Boost (JP from actions x1.5, Accrue JP doubled; doesn't stack with the support ability). This is the Ring of Aptitude's effect (bonus item 0x104, the only item with it set; its in-game description matches). Read from the game's code.",
         ["StatusAttributes.Blank1"] = "Never read by the game (watched 2026-11-16): free for future TIC Loader features.",
         ["StatusAttributes.Blank2"] = "Never read by the game (watched 2026-11-16): free for future TIC Loader features.",
         ["Weapons.Unknown"] = "FF on every weapon in the original game.",
