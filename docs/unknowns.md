@@ -53,4 +53,12 @@ The original data gives no clue for these:
 - **Items, Unknown1 and Unknown2**: 0 on all 256.
 - **Status attributes, Blank1 and Blank2**: 0 on all 40.
 
-Next step: set them on one ability or item and watch for any change in the game. If the game ignores them, TIC Loader could give them a meaning of its own (see the README's roadmap).
+### First experiment (2026-11-16)
+
+TIC Loader applied the changes (confirmed in the log), and Ramza used the abilities in one battle:
+
+- Focus, `New14` 0 → 1: no visible change.
+- Rush, `New16`-`New19` FF FF FF FF → 00 00 00 00: no visible change.
+- Stone, unchanged, used for comparison: normal.
+
+This is one quick look, not exhaustive. The bytes may matter in situations not tried: other ability types (magic, summons), enemies using the ability, menus, or other values. Next tries: magic (Cure), larger values, and an enemy-used ability. If they keep doing nothing, TIC Loader could give them a meaning of its own.
