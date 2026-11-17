@@ -1,6 +1,12 @@
-# FFTPatcher parity
+# Roadmap: FFTPatcher for The Ivalice Chronicles
 
-The goal: everything FFTPatcher can edit for War of the Lions, editable for The Ivalice Chronicles, in a tool that's pleasant to use. ✓ done, ◐ partly, ✗ not yet.
+TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP versions: it edits what TIC actually has, and it feels familiar to anyone who used FFTPatcher. FFTPatcher's pages are a guide to what modders expect, not a checklist to copy:
+
+- **Keep** the familiar pages and editing experience, for everything TIC still has.
+- **Drop** what only made sense for PSX/PSP: War of the Lions items TIC doesn't have, ISO and savestate patching, cheat codes.
+- **Add** what's new in TIC: the remaster's own items and fields, TIC Loader and its Play button, and features FFTPatcher never had (below).
+
+✓ done, ◐ partly, ✗ not yet.
 
 ## Editor pages
 

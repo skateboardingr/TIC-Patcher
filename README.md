@@ -19,7 +19,7 @@ Early research. Working so far:
 - **Confirmed in the real game:** The Ivalice Chronicles keeps the War of the Lions job table layout, and changing it in memory changes gameplay (Ramza's Move 4 → 6). See [docs/findings.md](docs/findings.md).
 - **TIC Loader 0.1, working in the game:** when the game starts, reads `TIC/tables.json` from every enabled Reloaded-II mod, merges them in load order (later mods win field by field), finds the job table by its fingerprint and writes only the bytes that change.
 
-Next: feature parity with FFTPatcher. [docs/parity.md](docs/parity.md) tracks what's done and what's left.
+Next: everything a TIC modder expects from FFTPatcher, plus what's new in TIC. [docs/parity.md](docs/parity.md) is the roadmap.
 
 Other Reloaded-II mods can extend TIC Loader, e.g. a bridge that loads mods made in another format: see [docs/bridge.md](docs/bridge.md) and the sample in [examples/TICFormatSample](examples/TICFormatSample).
 
