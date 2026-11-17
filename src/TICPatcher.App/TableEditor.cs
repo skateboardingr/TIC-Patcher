@@ -171,7 +171,8 @@ public sealed class TableEditor : UserControl
 
         if (list is not null)
         {
-            var max = field.Kind == FieldKind.Byte ? 0xFF : 0x1FF;
+            // Name lists cover ids up to 0x1FF (abilities, effects); a nibble only 0-15.
+            var max = Math.Min(Limit(field), 0x1FF);
             var items = Enumerable.Range(0, max + 1).Select(i => max > 0xFF ? $"{i:X3}  {Names.Get(list, i) ?? ""}" : $"{i:X2}  {Names.Get(list, i) ?? ""}").ToList();
             var value = int.Parse(current);
             if (value <= max)
@@ -186,13 +187,7 @@ public sealed class TableEditor : UserControl
             }
         }
 
-        var limit = field.Kind switch
-        {
-            FieldKind.Byte => 0xFF,
-            FieldKind.UInt16 => 0xFFFF,
-            FieldKind.Bits => field.Mask >> System.Numerics.BitOperations.TrailingZeroCount(field.Mask),
-            _ => 0x1FF,
-        };
+        var limit = Limit(field);
         var number = new NumericUpDown
         {
             Value = decimal.Parse(current),
@@ -210,6 +205,14 @@ public sealed class TableEditor : UserControl
         };
         return number;
     }
+
+    private static int Limit(FieldDef field) => field.Kind switch
+    {
+        FieldKind.Byte => 0xFF,
+        FieldKind.UInt16 => 0xFFFF,
+        FieldKind.Bits => field.Mask >> System.Numerics.BitOperations.TrailingZeroCount(field.Mask),
+        _ => 0x1FF,
+    };
 
     private void Commit(int id, FieldDef field, string value)
     {

@@ -15,6 +15,12 @@ public static class Names
     public const string Statuses = "Statuses";
     public const string Abilities = "Abilities";
     public const string Items = "Items";
+    public const string Effects = "Effects";
+    public const string Formulas = "Formulas";
+    public const string ShopAvailability = "ShopAvailability";
+    public const string ItemTypes = "ItemTypes";
+    public const string MenuActions = "MenuActions";
+    public const string AbilityTypes = "AbilityTypes";
 
     private static readonly Lazy<Dictionary<string, Dictionary<int, string>>> Lists = new(Load);
 

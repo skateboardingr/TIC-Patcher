@@ -5,24 +5,64 @@
 FFTPatcher (https://github.com/Glain/FFTPatcher, GPL-3.0) by Joe Davidson and Glain.
 """
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 
-LISTS = {  # name: (file under PatcherLib.Resources/Resources/PSP, element, id attribute, number base)
-    "Jobs": ("Jobs.xml", "Job", "offset", 16),
-    "SkillSets": ("SkillSets.xml", "SkillSet", "byte", 16),
-    "Statuses": ("StatusNames.xml", "Status", "offset", 10),
-    "Abilities": ("Abilities/Abilities.xml", "Ability", "value", 10),
-    "Items": ("Items/Items.xml", "Item", "offset", 10),
+RESOURCES = "PatcherLib.Resources/Resources"
+
+# name: (file under RESOURCES, element path, id attribute, number base, name attribute or None for the element text)
+XML_LISTS = {
+    "Jobs": ("PSP/Jobs.xml", "Job", "offset", 16, "name"),
+    "SkillSets": ("PSP/SkillSets.xml", "SkillSet", "byte", 16, "name"),
+    "Statuses": ("PSP/StatusNames.xml", "Status", "offset", 10, "name"),
+    "Abilities": ("PSP/Abilities/Abilities.xml", "Ability", "value", 10, "name"),
+    "Items": ("PSP/Items/Items.xml", "Item", "offset", 10, "name"),
+    "Effects": ("PSP/Abilities/Effects.xml", "Effect", "value", 16, "name"),
+    "Formulas": ("AbilityFormulas.xml", "Ability", "value", 16, None),
+    "ShopAvailability": ("PSP/Items/Strings.xml", "ShopAvailabilities/string", "value", 10, "name"),
 }
+
+# name: (C# file, enum name). Members count up from 0; [PSPDescription] or [Description] gives the display name.
+ENUM_LISTS = {
+    "ItemTypes": ("Datatypes/Items/Item.cs", "ItemSubType"),
+    "MenuActions": ("Datatypes/Job/ActionMenu.cs", "MenuAction"),
+    "AbilityTypes": ("Datatypes/Abilities/Ability.cs", "AbilityType"),
+}
+
+
+def read_enum(path, enum):
+    with open(path, encoding="latin-1") as f:
+        source = f.read()
+    body = re.search(r"enum\s+" + enum + r"\s*\{(.*?)\}", source, re.S).group(1)
+    names, pending = {}, {}
+    for line in body.splitlines():
+        line = line.split("//")[0].strip()
+        for kind, text in re.findall(r"\[(PSPDescription|Description)\(\s*\"([^\"]*)\"\s*\)\]", line):
+            pending[kind] = text.strip()
+        member = re.match(r"^([A-Za-z_]\w*)\s*(?:=\s*(\w+))?\s*,?$", line)
+        if member:
+            value = int(member.group(2), 0) if member.group(2) else len(names)
+            names[value] = pending.get("PSPDescription") or pending.get("Description") or member.group(1)
+            pending = {}
+    return names
 
 
 def main(checkout, out):
     names = {"_source": "Names from FFTPatcher (https://github.com/Glain/FFTPatcher, GPL-3.0) by Joe Davidson and Glain: "
-                        "PatcherLib.Resources/Resources/PSP (War of the Lions names). Regenerate with tools/names-from-fftpatcher.py."}
-    for key, (file, element, attr, base) in LISTS.items():
-        root = ET.parse(f"{checkout}/PatcherLib.Resources/Resources/PSP/{file}").getroot()
-        found = {int(e.get(attr), base): e.get("name").strip() for e in root.iter(element)}
+                        "PatcherLib.Resources/Resources (War of the Lions names) and its Datatypes enums. "
+                        "Regenerate with tools/names-from-fftpatcher.py."}
+    for key, (file, element, attr, base, name_attr) in XML_LISTS.items():
+        root = ET.parse(f"{checkout}/{RESOURCES}/{file}").getroot()
+        found = {}
+        for e in (root.iterfind(element) if "/" in element else root.iter(element)):
+            if e.get(attr) is None:
+                continue
+            text = e.get(name_attr) if name_attr else (e.text or "")
+            found[int(e.get(attr), base)] = text.strip()
+        names[key] = {str(k): v for k, v in sorted(found.items())}
+    for key, (file, enum) in ENUM_LISTS.items():
+        found = read_enum(f"{checkout}/{file}", enum)
         names[key] = {str(k): v for k, v in sorted(found.items())}
     with open(out, "w", encoding="utf-8") as f:
         json.dump(names, f, indent=1, ensure_ascii=False)

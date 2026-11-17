@@ -46,7 +46,7 @@ public static class SkillSets
     /// <summary>What each skill set's menu does (FFTPatcher's MenuAction numbers).</summary>
     public static readonly TableSchema ActionMenus = new(
         "ActionMenus", RecordSize: 1, RecordCount: 0xE3,
-        Fields: [FieldDef.U8("MenuAction", 0)],
+        Fields: [FieldDef.U8("MenuAction", 0) with { NameList = Names.MenuActions }],
         Source: "FFTPatcher Datatypes/Job/ActionMenu.cs") { RecordNames = Names.SkillSets };
 
     /// <summary>

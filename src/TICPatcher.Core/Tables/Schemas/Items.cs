@@ -25,11 +25,11 @@ public static class Items
             FieldDef.U8("EnemyLevel", 2),
             FieldDef.Flags("Flags", 3, ["Weapon", "Shield", "Head", "Body", "Accessory", "Blank1", "Rare", "Blank2"]),
             FieldDef.U8("SecondTableId", 4),
-            FieldDef.U8("ItemType", 5),
+            FieldDef.U8("ItemType", 5) with { NameList = Names.ItemTypes },
             FieldDef.U8("Unknown1", 6),
             FieldDef.U8("SIA", 7),
             FieldDef.U16("Price", 8),
-            FieldDef.U8("ShopAvailability", 10),
+            FieldDef.U8("ShopAvailability", 10) with { NameList = Names.ShopAvailability },
             FieldDef.U8("Unknown2", 11),
         ],
         Source: "FFTPatcher Datatypes/Items/Item.cs") { RecordNames = Names.Items };
@@ -42,7 +42,7 @@ public static class Items
         [
             FieldDef.U8("Range", 0),
             FieldDef.Flags("Flags", 1, ["Striking", "Lunging", "Direct", "Arc", "TwoSwords", "TwoHands", "Throwable", "Force2Hands"]),
-            FieldDef.U8("Formula", 2),
+            FieldDef.U8("Formula", 2) with { NameList = Names.Formulas },
             FieldDef.U8("Unknown", 3),
             FieldDef.U8("WeaponPower", 4),
             FieldDef.U8("EvadePercentage", 5),
@@ -68,7 +68,7 @@ public static class Items
 
     public static readonly TableSchema ChemistItems = new(
         "ChemistItems", RecordSize: 3, RecordCount: 0x0E,
-        Fields: [FieldDef.U8("Formula", 0), FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2)],
+        Fields: [FieldDef.U8("Formula", 0) with { NameList = Names.Formulas }, FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2)],
         Source: "FFTPatcher Datatypes/Items/ChemistItem.cs, AllItems.cs") { FirstId = 0xF0, RecordNames = Names.Items };
 
     public static readonly TableSchema Attributes = new(

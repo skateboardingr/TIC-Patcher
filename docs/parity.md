@@ -30,7 +30,8 @@ The goal: everything FFTPatcher can edit for War of the Lions, editable for The 
 |---|---|
 | Original value on hover, revert a record | ✓ |
 | Names in lists and for skill sets / abilities | ✓ |
-| Dropdowns with names for formulas, item types, menu actions, effects, inflict statuses, shop availability | ✗ |
+| Dropdowns with names for formulas, item types, menu actions, effects, ability types, shop availability | ✓ |
+| Inflict status dropdown that shows which statuses each entry inflicts | ✗ |
 | Copy and paste records | ✗ |
 | Show only changed records | ✗ |
 | Consolidate inflict statuses / item attributes (FFTPatcher utilities) | ✗ |
@@ -50,6 +51,7 @@ Text (names and descriptions, FFTacText's job) is a separate future step.
 Features FFTPatcher never had, planned for after parity. The hard ones need TIC Loader to change the game's code, not just its tables:
 
 - **New jobs:** create classes of your own, e.g. a Black Knight unlocked by Black Mage 8 and Knight 8. The job table has only two empty slots, so this needs room in the tables, plus names, sprites, menus and unlock rules.
+- **War of the Lions leftovers:** TIC's job table still has full records for Dark Knight (0xA0) and Onion Knight (0xA1, 0xA4), still allowed to equip Fell Swords and Lip Rouge, though no item of either type exists any more (TIC's items stop at 0x104). Bringing these jobs back is a natural first test for new jobs: the stats exist; unlock rules, menus, sprites and names would need checking.
 - **New abilities, items and skill sets** beyond the fixed table sizes. The remaster's action ability table seems to have room past the last ability, which may be a first place for this.
 - **Animation builder:** assemble an ability's animation from named parts in dropdowns (a charge-up, a weapon swing, a hit effect), using the animation and effect ids abilities already have. This needs a catalogue of what each id looks like, which the community could help fill in.
 - **More equip slots:** change how many action, reaction, support and movement abilities a unit can have. This is code plus the unit and save formats, so it needs care with saves. (Today, a job's four innate abilities already give always-on extras.)

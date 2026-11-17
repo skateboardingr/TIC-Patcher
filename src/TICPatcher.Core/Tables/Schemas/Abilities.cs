@@ -24,7 +24,7 @@ public static class Abilities
             FieldDef.U16("JPCost", 0),
             FieldDef.U8("LearnRate", 2),
             FieldDef.Flags("Flags", 3, ["NotLearnWithJP", "DisplayAbilityName", "LearnOnHit", "Blank1", null, null, null, null]),
-            FieldDef.Lower("AbilityType", 3),
+            FieldDef.Lower("AbilityType", 3) with { NameList = Names.AbilityTypes },
             FieldDef.Flags("AIFlags", 4,
             [
                 "HP", "MP", "CancelStatus", "AddStatus", "Stats", "Unequip", "TargetEnemies", "TargetAllies",
@@ -49,7 +49,7 @@ public static class Abilities
             FieldDef.Flags("Flags3", 5, ["Reflect", "Arithmetick", "NotSilence", "NotMimic", "NormalAttack", "Perservere", "ShowQuote", "AnimateMiss"]),
             FieldDef.Flags("Flags4", 6, ["CounterFlood", "CounterMagic", "Direct", "Shirahadori", "RequiresSword", "RequiresMateriaBlade", "Evadeable", "NotTargeting"]),
             FieldDef.Flags("Elements", 7, Jobs.Elements),
-            FieldDef.U8("Formula", 8),
+            FieldDef.U8("Formula", 8) with { NameList = Names.Formulas },
             FieldDef.U8("X", 9),
             FieldDef.U8("Y", 10),
             FieldDef.U8("InflictStatus", 11),
@@ -66,7 +66,7 @@ public static class Abilities
 
     public static readonly TableSchema Throw = new(
         "ThrowAbilities", RecordSize: 1, RecordCount: 12,
-        Fields: [FieldDef.U8("ItemType", 0)],
+        Fields: [FieldDef.U8("ItemType", 0) with { NameList = Names.ItemTypes }],
         Source: "FFTPatcher Datatypes/Abilities/Ability.cs (Throwing)") { FirstId = 0x17E, RecordNames = Names.Abilities };
 
     public static readonly TableSchema Jump = new(
@@ -81,7 +81,7 @@ public static class Abilities
 
     public static readonly TableSchema Effects = new(
         "AbilityEffects", RecordSize: 2, RecordCount: 0x1C6,
-        Fields: [FieldDef.U16("Effect", 0)],
+        Fields: [FieldDef.U16("Effect", 0) with { NameList = Names.Effects }],
         Source: "FFTPatcher Datatypes/Abilities/AllAbilities.cs (ToEffectsByteArray)") { RecordNames = Names.Abilities };
 
     public static readonly TableSchema Animations = new(
