@@ -90,5 +90,7 @@ public class ProjectTests
         Assert.Equal("Cure", Names.Get(Names.Abilities, 1));
         Assert.Equal("Potion", Names.Get(Names.Items, 0xF0));
         Assert.Null(Names.Get(Names.Items, 9999));
+        Assert.Equal("Ring of Aptitude", Names.Get(Names.Items, 0x104)); // not WotL's Valhalla
+        Assert.Null(Names.Get(Names.Items, 0x138)); // Tynar Rouge isn't in TIC
     }
 }

@@ -24,8 +24,19 @@ public static class Names
 
     private static readonly Lazy<Dictionary<string, Dictionary<int, string>>> Lists = new(Load);
 
-    public static string? Get(string list, int id) =>
-        Lists.Value.TryGetValue(list, out var names) && names.TryGetValue(id, out var name) && name.Length > 0 ? name : null;
+    /// <summary>
+    /// The Ivalice Chronicles reuses War of the Lions' item ids 0x100-0x104 (the
+    /// Fell Swords) for its own five extra items and has no items above 0x104,
+    /// so those names come from the game, not FFTPatcher's PSP list.
+    /// </summary>
+    public const int LastItem = 0x104;
+
+    public static string? Get(string list, int id)
+    {
+        if (list == Items && id >= 0x100)
+            return id <= LastItem ? Schemas.Items.ExtraNames.GetValueOrDefault(id) : null;
+        return Lists.Value.TryGetValue(list, out var names) && names.TryGetValue(id, out var name) && name.Length > 0 ? name : null;
+    }
 
     private static Dictionary<string, Dictionary<int, string>> Load()
     {
