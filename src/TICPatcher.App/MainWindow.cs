@@ -139,6 +139,13 @@ public sealed class MainWindow : Window
             Status("The game isn't running. Start it, wait for the title screen, and try again.");
             return;
         }
+        // The original tables must come from an unmodded game: with Reloaded-II
+        // (and so TIC Loader) inside, the copy would hold the mods' values.
+        if (RunsReloaded(game))
+        {
+            Status("The game was started through Reloaded-II, so its tables may be modded. Close it, start it from Steam, then Read from game.");
+            return;
+        }
         try
         {
             var vanilla = VanillaData.FromProcess(game);
@@ -151,7 +158,19 @@ public sealed class MainWindow : Window
         }
     }
 
-    private async Task OpenMod()
+    private static bool RunsReloaded(Process game)
+    {
+        try
+        {
+            return game.Modules.Cast<ProcessModule>().Any(m => m.ModuleName.StartsWith("Reloaded", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false; // can't list modules; FromProcess reports any real problem
+        }
+    }
+
+        private async Task OpenMod()
     {
         if (_project is null)
         {
