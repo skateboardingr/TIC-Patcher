@@ -32,10 +32,10 @@ public sealed class MainWindow : Window
     private static readonly FilePickerFileType TablesJson = new("TIC mod tables") { Patterns = ["tables.json", "*.json"] };
 
     private readonly ContentControl _body = new();
-    private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0) };
+    private readonly TextBlock _status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(10, 6) };
     private ModProject? _project;
     private string? _path;
-    private readonly TextBox _modName = new() { PlaceholderText = "Mod name", Text = "My TIC mod", Width = 200 };
+    private readonly TextBox _modName = new() { PlaceholderText = "Mod name", Width = 200 };
 
     public MainWindow(string[] args)
     {
@@ -43,20 +43,21 @@ public sealed class MainWindow : Window
         Width = 1100;
         Height = 760;
 
-        var read = new Button { Content = "Read from game" };
+        var find = new Button { Content = "Find game…" };
+        ToolTip.SetTip(find, "Pick FFT_enhanced.exe if TIC Patcher didn't find your game.");
+        find.Click += async (_, _) => await FindGame();
         var open = new Button { Content = "Open mod…" };
         var save = new Button { Content = "Save mod…" };
         var play = new Button { Content = "▶ Play" };
         ToolTip.SetTip(play, "Install this mod into Reloaded-II, turn it on, and start the game with it.");
         play.Click += (_, _) => Play();
         _modName.TextChanged += (_, _) => UpdateTitle();
-        read.Click += (_, _) => ReadFromGame();
         open.Click += async (_, _) => await OpenMod();
         save.Click += async (_, _) => await SaveMod();
 
         var toolbar = new DockPanel { Margin = new Thickness(8) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        buttons.Children.Add(read);
+        buttons.Children.Add(find);
         buttons.Children.Add(open);
         buttons.Children.Add(save);
         buttons.Children.Add(new TextBlock { Text = "Mod:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
@@ -64,36 +65,76 @@ public sealed class MainWindow : Window
         buttons.Children.Add(play);
         DockPanel.SetDock(buttons, Dock.Left);
         toolbar.Children.Add(buttons);
-        toolbar.Children.Add(_status);
 
+        var statusBar = new Border { Child = _status, BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Avalonia.Media.Brushes.Gray };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
+        root.Children.Add(statusBar);
         root.Children.Add(_body);
         Content = root;
 
+        _modName.Text = "My TIC mod";
         var image = Array.IndexOf(args, "--from-image") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         if (image is not null)
             Load(VanillaData.FromImage(File.ReadAllBytes(image)), $"Read {image}");
-        else if (VanillaData.Saved().FirstOrDefault() is { } saved)
-            Load(VanillaData.Load(saved), "Original tables loaded from this PC.");
-        else
-            ShowWelcome();
+        else if (!TryLoadExecutable(GameLocator.Find()))
+        {
+            if (VanillaData.Saved().FirstOrDefault() is { } saved)
+                Load(VanillaData.Load(saved), "Original values loaded from this PC's copy.");
+            else
+                ShowWelcome();
+        }
     }
 
     private void Status(string text) => _status.Text = text;
 
+    // Reads the original values from the installed game's executable (read-only).
+    private bool TryLoadExecutable(string? exe)
+    {
+        if (exe is null)
+            return false;
+        try
+        {
+            var vanilla = VanillaData.FromExecutable(exe);
+            vanilla.Save();
+            Load(vanilla, "Original values read from your installed game.", _project?.Edits);
+            return true;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or FormatException or NotSupportedException or InvalidOperationException)
+        {
+            Status($"Couldn't read {exe}: {error.Message}");
+            return false;
+        }
+    }
+
+    private async Task FindGame()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Find FFT_enhanced.exe (in the game's Steam folder)",
+            FileTypeFilter = [new FilePickerFileType("The game") { Patterns = [GameLocator.ExeName] }],
+        });
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+            TryLoadExecutable(path);
+    }
+
     private void ShowWelcome()
     {
-        _body.Content = new TextBlock
+        var panel = new StackPanel { Margin = new Thickness(24), Spacing = 12, MaxWidth = 640, HorizontalAlignment = HorizontalAlignment.Left };
+        panel.Children.Add(new TextBlock
         {
-            Text = "Start FINAL FANTASY TACTICS - The Ivalice Chronicles, wait for the title screen, then click \"Read from game\".\n\n"
-                + "TIC Patcher copies the game's original tables from your own running game (read-only), so no game data is shipped with it.",
+            Text = "TIC Patcher couldn't find FINAL FANTASY TACTICS - The Ivalice Chronicles.\n\n"
+                + "Click \"Find game…\" and pick FFT_enhanced.exe in the game's Steam folder. TIC Patcher reads the original values "
+                + "from your own copy of the game (read-only), so no game data is shipped with it.\n\n"
+                + "If that doesn't work, start the game from Steam, wait for the title screen, and read the values from the running game instead.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Margin = new Thickness(24),
-            MaxWidth = 640,
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
+        });
+        var read = new Button { Content = "Read from the running game" };
+        read.Click += (_, _) => ReadFromGame();
+        panel.Children.Add(read);
+        _body.Content = panel;
     }
 
     private void Load(VanillaData vanilla, string message, TableEdits? edits = null)

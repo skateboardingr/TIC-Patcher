@@ -57,6 +57,38 @@ public sealed class VanillaData
     public static VanillaData FromImage(byte[] image) =>
         FromReader(image.AsSpan(0, Math.Min(image.Length, 0x1000)), (offset, length) => image.AsSpan((int)offset, length).ToArray());
 
+    /// <summary>
+    /// Copies the tables out of the game's executable on disk (read-only), laid
+    /// out as it is in memory. Throws if it isn't a known version or the tables
+    /// can't be read from the file.
+    /// </summary>
+    public static VanillaData FromExecutable(string path) => FromImage(ImageOf(File.ReadAllBytes(path)));
+
+    /// <summary>A PE file's sections placed at their virtual addresses, as the loader maps them.</summary>
+    public static byte[] ImageOf(byte[] file)
+    {
+        var pe = BitConverter.ToInt32(file, 0x3C);
+        if (pe <= 0 || pe + 24 > file.Length || BitConverter.ToUInt32(file, pe) != 0x00004550)
+            throw new FormatException("Not a Windows executable.");
+        var sectionCount = BitConverter.ToUInt16(file, pe + 6);
+        var optionalSize = BitConverter.ToUInt16(file, pe + 20);
+        var optional = pe + 24;
+        var image = new byte[BitConverter.ToUInt32(file, optional + 56)];
+        var headers = (int)Math.Min(BitConverter.ToUInt32(file, optional + 60), (uint)file.Length);
+        Array.Copy(file, image, Math.Min(headers, image.Length));
+        for (var i = 0; i < sectionCount; i++)
+        {
+            var section = optional + optionalSize + i * 40;
+            var virtualAddress = BitConverter.ToInt32(file, section + 12);
+            var rawSize = BitConverter.ToInt32(file, section + 16);
+            var rawOffset = BitConverter.ToInt32(file, section + 20);
+            var length = Math.Min(Math.Min(rawSize, file.Length - rawOffset), image.Length - virtualAddress);
+            if (length > 0 && rawOffset > 0)
+                Array.Copy(file, rawOffset, image, virtualAddress, length);
+        }
+        return image;
+    }
+
     /// <summary>Copies the tables out of the running game (read-only).</summary>
     [SupportedOSPlatform("windows")]
     public static VanillaData FromProcess(Process game)

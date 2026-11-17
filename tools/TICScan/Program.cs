@@ -22,6 +22,48 @@ using TICPatcher.Core.Tables.Schemas;
 if (args.Length >= 4 && args[0] == "--image")
     return ImageViewer.Show(args[1], args[2], args[3..]);
 
+// TICScan --save-vanilla <FFT_enhanced.exe or memory image> <out.json>, and
+// TICScan --compare <a.json> <b.json>: research helpers for the original tables.
+if (args.Length >= 3 && args[0] == "--save-vanilla")
+{
+    var bytes = File.ReadAllBytes(args[1]);
+    var looksLikeImage = bytes.Length > 0x1000 && BitConverter.ToUInt32(bytes, BitConverter.ToInt32(bytes, 0x3C) + 24 + 56) == bytes.Length;
+    var data = TICPatcher.Core.Mods.VanillaData.FromImage(looksLikeImage ? bytes : TICPatcher.Core.Mods.VanillaData.ImageOf(bytes));
+    data.Save(args[2]);
+    Console.WriteLine($"saved {data.Tables.Count} tables from {(looksLikeImage ? "a memory image" : "an executable")}");
+    return 0;
+}
+if (args.Length >= 3 && args[0] == "--compare")
+{
+    var a = TICPatcher.Core.Mods.VanillaData.Load(args[1]);
+    var b = TICPatcher.Core.Mods.VanillaData.Load(args[2]);
+    foreach (var (name, bytes) in a.Tables)
+    {
+        var other = b.Tables[name];
+        var differ = Enumerable.Range(0, bytes.Length).Where(i => bytes[i] != other[i]).ToList();
+        var size = AllTables.ByName[name].RecordSize;
+        Console.WriteLine($"  {name,-18} {(differ.Count == 0 ? "identical" : $"{differ.Count} byte(s) differ, records {string.Join(" ", differ.Select(i => $"{i / size + AllTables.ByName[name].FirstId:X2}").Distinct().Take(10))}")}");
+    }
+    return 0;
+}
+
+// TICScan --exe <FFT_enhanced.exe>: can the original tables be read from the file on disk?
+if (args.Length >= 2 && args[0] == "--exe")
+{
+    try
+    {
+        var vanilla = TICPatcher.Core.Mods.VanillaData.FromExecutable(args[1]);
+        var squire = vanilla.Tables["Jobs"].AsSpan(0x4A * 49, 49).ToArray();
+        Console.WriteLine($"Read from the file: {vanilla.BuildName}, {vanilla.Tables.Count} tables. Squire Move={RecordCodec.Read(Jobs.Schema.Field("Move"), squire)}, HPConstant={RecordCodec.Read(Jobs.Schema.Field("HPConstant"), squire)}");
+        return 0;
+    }
+    catch (Exception error) when (error is FormatException or NotSupportedException or InvalidOperationException or IOException)
+    {
+        Console.WriteLine($"Can't read the tables from the file: {error.Message}");
+        return 1;
+    }
+}
+
 // TICScan --copies <table> [record id hex] [bytes]: finds copies of a table elsewhere
 // in the running game's memory (e.g. one the game builds at run time), by its first
 // bytes; with a record id, finds copies of just that record's first <bytes> bytes.
