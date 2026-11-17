@@ -22,14 +22,17 @@ using TICPatcher.Core.Tables.Schemas;
 if (args.Length >= 4 && args[0] == "--image")
     return ImageViewer.Show(args[1], args[2], args[3..]);
 
-// TICScan --copies <table> [process]: finds copies of a table elsewhere in the
-// running game's memory (e.g. one the game builds at run time), by its first bytes.
+// TICScan --copies <table> [record id hex] [bytes]: finds copies of a table elsewhere
+// in the running game's memory (e.g. one the game builds at run time), by its first
+// bytes; with a record id, finds copies of just that record's first <bytes> bytes.
 if (args.Length >= 2 && args[0] == "--copies")
 {
     if (!OperatingSystem.IsWindows())
         return 2;
-    var game = Process.GetProcessesByName(args.Length > 2 ? args[2] : "fft_enhanced").FirstOrDefault();
-    return game is null ? 1 : Copies.Find(game, args[1]);
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    int? record = args.Length > 2 ? Convert.ToInt32(args[2], 16) : null;
+    var length = args.Length > 3 ? int.Parse(args[3]) : 0;
+    return game is null ? 1 : Copies.Find(game, args[1], record, length);
 }
 
 if (!OperatingSystem.IsWindows())
@@ -178,7 +181,7 @@ static class ImageViewer
 [SupportedOSPlatform("windows")]
 static class Copies
 {
-    public static int Find(Process game, string table)
+    public static int Find(Process game, string table, int? record = null, int length = 0)
     {
         var module = game.MainModule!;
         var start = (long)module.BaseAddress;
@@ -192,6 +195,11 @@ static class Copies
             var original = memory.Read(start + build.Tables[table], schema.Length);
             // Skip the first records (often blank); look for a distinctive run.
             var probe = original.AsSpan(schema.RecordSize * 1, Math.Min(96, schema.Length - schema.RecordSize)).ToArray();
+            if (record is { } id)
+            {
+                probe = original.AsSpan((id - schema.FirstId) * schema.RecordSize, length > 0 ? length : schema.RecordSize).ToArray();
+                Console.WriteLine($"record 0x{id:X2}, first {probe.Length} bytes: {Convert.ToHexString(probe)}");
+            }
             Console.WriteLine($"{table}: original at module +0x{build.Tables[table]:X}; searching all memory for copies");
             var found = 0;
             foreach (var (blockStart, bytes) in memory.ContiguousBlocks(0, long.MaxValue))

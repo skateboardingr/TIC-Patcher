@@ -1,3 +1,6 @@
 # Table, record id, field, value. One edit per line; # starts a comment.
-# This one gives Ramza (job 0x01) Jump 4, so you can see the bridge working.
+# These give Ramza Jump 4 in all three of his job records (0x01-0x03: his
+# chapter 1, chapter 2-3 and chapter 4 versions), so you can see the bridge working.
 Jobs,0x01,Jump,4
+Jobs,0x02,Jump,4
+Jobs,0x03,Jump,4
