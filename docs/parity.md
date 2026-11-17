@@ -42,7 +42,7 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Show only changed records | ✓ |
 | Consolidate inflict statuses / item attributes (FFTPatcher utilities) | ✗ |
 | Open and save a mod | ✓ (`tables.json`) |
-| Save as a ready Reloaded-II mod, enable it and launch the game ("Play") | ✗ |
+| Save as a ready Reloaded-II mod, enable it and launch the game ("Play") | ✓ |
 | Import an FFTPatcher patch file | ✗ |
 | Extension API for other mods (bridges to other mod formats) | ✓ ([bridge.md](bridge.md)) |
 

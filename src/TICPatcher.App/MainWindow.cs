@@ -11,8 +11,9 @@ namespace TICPatcher.App;
 
 /// <summary>
 /// The editor window: FFTPatcher-style tabs over every table, a toolbar to
-/// read the original tables from the running game, and open/save of a mod's
-/// TIC/tables.json.
+/// read the original tables from the running game, open/save of a mod's
+/// TIC/tables.json, and Play: install the mod into Reloaded-II, turn it on
+/// and launch the game.
 /// </summary>
 public sealed class MainWindow : Window
 {
@@ -34,6 +35,7 @@ public sealed class MainWindow : Window
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0) };
     private ModProject? _project;
     private string? _path;
+    private readonly TextBox _modName = new() { PlaceholderText = "Mod name", Text = "My TIC mod", Width = 200 };
 
     public MainWindow(string[] args)
     {
@@ -44,6 +46,10 @@ public sealed class MainWindow : Window
         var read = new Button { Content = "Read from game" };
         var open = new Button { Content = "Open mod…" };
         var save = new Button { Content = "Save mod…" };
+        var play = new Button { Content = "▶ Play" };
+        ToolTip.SetTip(play, "Install this mod into Reloaded-II, turn it on, and start the game with it.");
+        play.Click += (_, _) => Play();
+        _modName.TextChanged += (_, _) => UpdateTitle();
         read.Click += (_, _) => ReadFromGame();
         open.Click += async (_, _) => await OpenMod();
         save.Click += async (_, _) => await SaveMod();
@@ -53,6 +59,9 @@ public sealed class MainWindow : Window
         buttons.Children.Add(read);
         buttons.Children.Add(open);
         buttons.Children.Add(save);
+        buttons.Children.Add(new TextBlock { Text = "Mod:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
+        buttons.Children.Add(_modName);
+        buttons.Children.Add(play);
         DockPanel.SetDock(buttons, Dock.Left);
         toolbar.Children.Add(buttons);
         toolbar.Children.Add(_status);
@@ -113,7 +122,7 @@ public sealed class MainWindow : Window
     private void UpdateTitle()
     {
         var count = _project?.Edits.All.Count() ?? 0;
-        var name = _path is null ? "new mod" : Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(_path))) ?? _path;
+        var name = string.IsNullOrWhiteSpace(_modName.Text) ? "new mod" : _modName.Text.Trim();
         Title = $"TIC Patcher - {name}{(count > 0 ? $" ({count} change{(count == 1 ? "" : "s")})" : "")}";
     }
 
@@ -160,11 +169,63 @@ public sealed class MainWindow : Window
         {
             var edits = TableEdits.Parse(await File.ReadAllTextAsync(path));
             _path = path;
+            // A mod opened from its folder (…/<mod>/TIC/tables.json) keeps its name.
+            var config = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(path)) ?? "", "ModConfig.json");
+            if (File.Exists(config) && System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(config))?["ModName"] is { } name)
+                _modName.Text = (string?)name;
             Load(_project.Vanilla, $"Opened {path}", edits);
         }
         catch (Exception error) when (error is FormatException or IOException or System.Text.Json.JsonException)
         {
             Status($"Couldn't open {Path.GetFileName(path)}: {error.Message}");
+        }
+    }
+
+    private void Play()
+    {
+        if (_project is null)
+        {
+            Status("Read the original tables from the game first.");
+            return;
+        }
+        if (Process.GetProcessesByName("FFT_enhanced").Length > 0)
+        {
+            Status("Close the game first: mods are applied when it starts.");
+            return;
+        }
+        if (Process.GetProcessesByName("Reloaded-II").Length > 0)
+        {
+            Status("Close Reloaded-II's window first, so it doesn't undo the change.");
+            return;
+        }
+        if (ReloadedSetup.Find(out var problem) is not { } reloaded)
+        {
+            Status(problem);
+            return;
+        }
+        if (!reloaded.LoaderInstalled)
+        {
+            Status("TIC Loader isn't in Reloaded-II's Mods folder yet; install it first.");
+            return;
+        }
+        var name = string.IsNullOrWhiteSpace(_modName.Text) ? "My TIC mod" : _modName.Text.Trim();
+        var id = ReloadedSetup.IdFor(name);
+        try
+        {
+            var folder = reloaded.Install(id, name, Environment.UserName, "Made with TIC Patcher.", _project.Edits.ToJson());
+            if (!reloaded.Enable(id))
+            {
+                Status("Add the game to Reloaded-II first (Add an Application, pick FFT_enhanced.exe).");
+                return;
+            }
+            Process.Start(reloaded.LaunchCommand());
+            _path = Path.Combine(folder, ModCollector.TablesFile);
+            UpdateTitle();
+            Status($"Started the game with \"{name}\" ({_project.Edits.All.Count()} change(s)).");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            Status("Couldn't start: " + error.Message);
         }
     }
 
