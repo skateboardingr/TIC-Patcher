@@ -47,7 +47,7 @@ public static class Items
             FieldDef.U8("WeaponPower", 4),
             FieldDef.U8("EvadePercentage", 5),
             FieldDef.Flags("Elements", 6, Jobs.Elements),
-            FieldDef.U8("InflictStatus", 7),
+            FieldDef.U8("InflictStatus", 7) with { NameList = Names.InflictStatuses },
         ],
         Source: "FFTPatcher Datatypes/Items/Weapon.cs, AllItems.cs") { RecordNames = Names.Items };
 
@@ -68,7 +68,7 @@ public static class Items
 
     public static readonly TableSchema ChemistItems = new(
         "ChemistItems", RecordSize: 3, RecordCount: 0x0E,
-        Fields: [FieldDef.U8("Formula", 0) with { NameList = Names.Formulas }, FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2)],
+        Fields: [FieldDef.U8("Formula", 0) with { NameList = Names.Formulas }, FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2) with { NameList = Names.InflictStatuses }],
         Source: "FFTPatcher Datatypes/Items/ChemistItem.cs, AllItems.cs") { FirstId = 0xF0, RecordNames = Names.Items };
 
     public static readonly TableSchema Attributes = new(

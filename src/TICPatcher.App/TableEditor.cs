@@ -4,13 +4,15 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using TICPatcher.Core.Mods;
 using TICPatcher.Core.Tables;
+using TICPatcher.Core.Tables.Schemas;
 
 namespace TICPatcher.App;
 
 /// <summary>
 /// Edits one table: its records on the left, the selected record's fields on
 /// the right, built from the table's schema. Changed fields are highlighted
-/// and show the original value on hover.
+/// and show the original value on hover. Records can be copied and pasted
+/// onto others of the same table, and the list can show changed records only.
 /// </summary>
 public sealed class TableEditor : UserControl
 {
@@ -21,6 +23,10 @@ public sealed class TableEditor : UserControl
     private readonly Action<string> _status;
     private readonly ListBox _records = new();
     private readonly TextBox _filter = new() { PlaceholderText = "Filter" };
+    private readonly CheckBox _changedOnly = new() { Content = "Changed only", Margin = new Thickness(8, 0, 0, 0) };
+
+    // Shared by every table editor: a copied record, pasted onto one of the same table.
+    private static (string Table, Dictionary<string, string> Values)? _clipboard;
     private readonly StackPanel _fields = new() { Spacing = 6, Margin = new Thickness(12, 0, 12, 12) };
     private readonly List<int> _shown = [];
     private bool _building;
@@ -31,10 +37,13 @@ public sealed class TableEditor : UserControl
         _schema = schema;
         _status = status;
 
-        var left = new DockPanel { Width = 260 };
-        DockPanel.SetDock(_filter, Dock.Top);
-        _filter.Margin = new Thickness(0, 0, 0, 6);
-        left.Children.Add(_filter);
+        var left = new DockPanel { Width = 280 };
+        var search = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        DockPanel.SetDock(_changedOnly, Dock.Right);
+        search.Children.Add(_changedOnly);
+        search.Children.Add(_filter);
+        DockPanel.SetDock(search, Dock.Top);
+        left.Children.Add(search);
         left.Children.Add(_records);
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Margin = new Thickness(8) };
@@ -45,6 +54,7 @@ public sealed class TableEditor : UserControl
         Content = grid;
 
         _filter.TextChanged += (_, _) => FillRecords();
+        _changedOnly.IsCheckedChanged += (_, _) => FillRecords();
         _records.SelectionChanged += (_, _) => ShowRecord();
         FillRecords();
         _records.SelectedIndex = 0;
@@ -64,7 +74,8 @@ public sealed class TableEditor : UserControl
         var filter = _filter.Text?.Trim() ?? "";
         _shown.Clear();
         _shown.AddRange(Enumerable.Range(_schema.FirstId, _schema.RecordCount)
-            .Where(id => filter.Length == 0 || Label(id).Contains(filter, StringComparison.OrdinalIgnoreCase)));
+            .Where(id => filter.Length == 0 || Label(id).Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Where(id => _changedOnly.IsChecked != true || _project.IsChanged(_schema, id)));
         _records.ItemsSource = _shown.Select(Label).ToList();
         if (selected is { } id && _shown.IndexOf(id) is >= 0 and var index)
             _records.SelectedIndex = index;
@@ -99,8 +110,21 @@ public sealed class TableEditor : UserControl
             RefreshLabel(id);
             ShowRecord();
         };
-        DockPanel.SetDock(revert, Dock.Right);
-        header.Children.Add(revert);
+        var copy = new Button { Content = "Copy" };
+        copy.Click += (_, _) =>
+        {
+            _clipboard = (_schema.Name, _schema.Fields.ToDictionary(f => f.Name, f => _project.Current(_schema, id, f.Name)));
+            _status($"Copied {Label(id).Replace(" •", "")}");
+            ShowRecord();
+        };
+        var paste = new Button { Content = "Paste", IsEnabled = _clipboard?.Table == _schema.Name };
+        paste.Click += (_, _) => Paste(id);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        buttons.Children.Add(copy);
+        buttons.Children.Add(paste);
+        buttons.Children.Add(revert);
+        DockPanel.SetDock(buttons, Dock.Right);
+        header.Children.Add(buttons);
         header.Children.Add(new TextBlock
         {
             Text = Label(id).Replace(" •", ""),
@@ -173,7 +197,9 @@ public sealed class TableEditor : UserControl
         {
             // Name lists cover ids up to 0x1FF (abilities, effects); a nibble only 0-15.
             var max = Math.Min(Limit(field), 0x1FF);
-            var items = Enumerable.Range(0, max + 1).Select(i => max > 0xFF ? $"{i:X3}  {Names.Get(list, i) ?? ""}" : $"{i:X2}  {Names.Get(list, i) ?? ""}").ToList();
+            if (list == Names.InflictStatuses)
+                max = Statuses.Inflict.RecordCount - 1;
+            var items = Enumerable.Range(0, max + 1).Select(i => max > 0xFF ? $"{i:X3}  {NameIn(list, i) ?? ""}" : $"{i:X2}  {NameIn(list, i) ?? ""}").ToList();
             var value = int.Parse(current);
             if (value <= max)
             {
@@ -204,6 +230,40 @@ public sealed class TableEditor : UserControl
                 Commit(id, field, ((int)v).ToString());
         };
         return number;
+    }
+
+    private string? NameIn(string list, int id) => list == Names.InflictStatuses ? InflictName(id) : Names.Get(list, id);
+
+    // An inflict-status entry as the mod currently has it, e.g. "Poison (Cancel)".
+    private string? InflictName(int id)
+    {
+        if (id == 0 || !_project.HasTable(Statuses.Inflict.Name))
+            return id == 0 ? "None" : null;
+        var statuses = _project.Current(Statuses.Inflict, id, "Statuses");
+        var flags = _project.Current(Statuses.Inflict, id, "Flags");
+        var text = statuses.Length == 0 ? "(no statuses)" : statuses;
+        return flags.Length == 0 ? text : $"{text} ({flags})";
+    }
+
+    private void Paste(int id)
+    {
+        if (_clipboard is not { } copied || copied.Table != _schema.Name)
+            return;
+        var failed = 0;
+        foreach (var (field, value) in copied.Values)
+        {
+            try
+            {
+                _project.Set(_schema, id, field, value);
+            }
+            catch (FormatException)
+            {
+                failed++;
+            }
+        }
+        _status(failed == 0 ? $"Pasted onto {Label(id).Replace(" •", "")}" : $"Pasted, but {failed} field(s) couldn't be set");
+        RefreshLabel(id);
+        ShowRecord();
     }
 
     private static int Limit(FieldDef field) => field.Kind switch

@@ -5,15 +5,16 @@ using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using TICPatcher.App;
 
-// AppShot <memory image> <output folder> [tab:record ...]
-// e.g. AppShot image.bin shots 0:1 4:240 renders the Jobs tab on Squire and the Items tab on Potion.
+// AppShot <memory image> <output folder> [tab:record or tab:subtab:record ...]
+// e.g. AppShot image.bin shots 0:1 4:240 3:1:32 renders Jobs on Squire, Items on Potion,
+// and Abilities > ActionAbilities on Haste.
 AppBuilder.Configure<App>()
     .UseSkia()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
     .WithInterFont()
     .SetupWithoutStarting();
 
-var window = new MainWindow(["--from-image", args[0]]) { Width = 1200, Height = 800 };
+var window = new MainWindow(["--from-image", args[0]]) { Width = 1200, Height = 1000 };
 window.Show();
 Directory.CreateDirectory(args[1]);
 foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
@@ -22,11 +23,20 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
     var tabs = window.GetLogicalDescendants().OfType<TabControl>().First();
     tabs.SelectedIndex = parts[0];
     Pump();
-    var list = ((Control)tabs.SelectedContent!).GetLogicalDescendants().OfType<ListBox>().First();
-    list.SelectedIndex = parts[1];
+    var content = (Control)tabs.SelectedContent!;
+    if (parts.Length == 3 && content is TabControl subTabs)
+    {
+        subTabs.SelectedIndex = parts[1];
+        Pump();
+        content = (Control)subTabs.SelectedContent!;
+    }
+    var list = content.GetLogicalDescendants().OfType<ListBox>().First();
+    list.SelectedIndex = parts[^1];
     Pump();
-    var path = Path.Combine(args[1], $"tab{parts[0]}-rec{parts[1]}.png");
+    var path = Path.Combine(args[1], $"shot-{string.Join('-', parts)}.png");
+#pragma warning disable CS0618 // the replacement overload needs encoder plumbing this tool doesn't need
     window.CaptureRenderedFrame()?.Save(path);
+#pragma warning restore CS0618
     Console.WriteLine(path);
 }
 

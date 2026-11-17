@@ -22,6 +22,9 @@ public static class Names
     public const string MenuActions = "MenuActions";
     public const string AbilityTypes = "AbilityTypes";
 
+    /// <summary>Not a fixed list: the editor names each entry from the mod's current InflictStatuses table.</summary>
+    public const string InflictStatuses = "InflictStatuses";
+
     private static readonly Lazy<Dictionary<string, Dictionary<int, string>>> Lists = new(Load);
 
     /// <summary>

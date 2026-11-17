@@ -37,9 +37,9 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Original value on hover, revert a record | ✓ |
 | Names in lists and for skill sets / abilities | ✓ |
 | Dropdowns with names for formulas, item types, menu actions, effects, ability types, shop availability | ✓ |
-| Inflict status dropdown that shows which statuses each entry inflicts | ✗ |
-| Copy and paste records | ✗ |
-| Show only changed records | ✗ |
+| Inflict status dropdown that shows which statuses each entry inflicts | ✓ |
+| Copy and paste records | ✓ |
+| Show only changed records | ✓ |
 | Consolidate inflict statuses / item attributes (FFTPatcher utilities) | ✗ |
 | Open and save a mod | ✓ (`tables.json`) |
 | Save as a ready Reloaded-II mod, enable it and launch the game ("Play") | ✗ |
