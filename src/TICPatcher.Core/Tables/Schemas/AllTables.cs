@@ -14,6 +14,7 @@ public static class AllTables
         Items.Extra, Items.ExtraWeapons, Items.ExtraArmor,
         Items.Attributes, Items.ShopInventories,
         Statuses.Attributes, Statuses.Inflict,
+        Errands.Schema,
     ];
 
     public static readonly IReadOnlyDictionary<string, TableSchema> ByName =

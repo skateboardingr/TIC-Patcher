@@ -21,6 +21,13 @@ public static class Names
     public const string ItemTypes = "ItemTypes";
     public const string MenuActions = "MenuActions";
     public const string AbilityTypes = "AbilityTypes";
+    public const string Errands = "Errands";
+    public const string ErrandTypes = "ErrandTypes";
+    public const string ErrandStats = "ErrandStats";
+    public const string ErrandRewards = "ErrandRewards";
+    public const string ErrandPrereqs = "ErrandPrereqs";
+    public const string ErrandClasses = "ErrandClasses";
+    public const string Towns = "Towns";
 
     /// <summary>Not a fixed list: the editor names each entry from the mod's current InflictStatuses table.</summary>
     public const string InflictStatuses = "InflictStatuses";

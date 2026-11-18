@@ -41,8 +41,8 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
         Pump();
         content = (Control)subTabs.SelectedContent!;
     }
-    var list = content.GetLogicalDescendants().OfType<ListBox>().First();
-    list.SelectedIndex = parts[^1];
+    if (content.GetLogicalDescendants().OfType<ListBox>().FirstOrDefault() is { } list)
+        list.SelectedIndex = parts[^1];
     Pump();
     var path = Path.Combine(args[1], $"shot{++shotNumber}-{string.Join('-', parts)}.png");
 #pragma warning disable CS0618 // the replacement overload needs encoder plumbing this tool doesn't need

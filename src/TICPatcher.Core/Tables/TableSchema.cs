@@ -39,6 +39,19 @@ public sealed record FieldDef(string Name, int Offset, FieldKind Kind, int Size 
 
     /// <summary>The table whose record this field's value selects (e.g. an item's attributes entry), for jumping to it.</summary>
     public string? LinksTo { get; init; }
+
+    /// <summary>
+    /// The field means something else when another field of the record has a
+    /// given value, e.g. a weapon's InflictStatus is the spell it casts when its
+    /// Formula is 02.
+    /// </summary>
+    public FieldMeaning? When { get; init; }
+
+    /// <summary>This field as it reads for a record (see <see cref="When"/>).</summary>
+    public FieldDef For(Func<string, string> otherField) =>
+        When is { } when && otherField(when.Field) == when.Value.ToString()
+            ? this with { Label = when.Label, NameList = when.NameList, LinksTo = when.LinksTo, When = null }
+            : this;
     public int HighOffset { get; init; }
     public byte HighMask { get; init; }
 
@@ -52,6 +65,9 @@ public sealed record FieldDef(string Name, int Offset, FieldKind Kind, int Size 
     public static FieldDef Ability(string name, int offset, int highOffset, byte highMask) =>
         new(name, offset, FieldKind.AbilityId) { HighOffset = highOffset, HighMask = highMask, LinksTo = "Abilities" };
 }
+
+/// <summary>What a field means while <paramref name="Field"/> of the same record equals <paramref name="Value"/>.</summary>
+public sealed record FieldMeaning(string Field, int Value, string Label, string? NameList, string? LinksTo);
 
 /// <summary>
 /// A table of fixed-size records, e.g. the 169 jobs of 49 bytes each.

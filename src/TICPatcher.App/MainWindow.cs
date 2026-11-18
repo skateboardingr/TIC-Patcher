@@ -27,6 +27,7 @@ public sealed class MainWindow : Window
         ("Item Attributes", [Items.Attributes]),
         ("Shops", [Items.ShopInventories]),
         ("Statuses", [Statuses.Attributes, Statuses.Inflict]),
+        ("Errands", [Errands.Schema]),
     ];
 
     private static readonly FilePickerFileType TablesJson = new("TIC mod tables") { Patterns = ["tables.json", "*.json"] };
@@ -173,7 +174,21 @@ public sealed class MainWindow : Window
                 continue;
             var editors = available.Select(t => new TableEditor(_project, t, Status, Navigate)).ToArray();
             var top = new TabItem { Header = tab };
-            if (editors.Length == 1)
+            if (tab == "Shops" && editors.Length == 1)
+            {
+                // Shops can be edited by town as well as by item.
+                var sub = new TabControl
+                {
+                    ItemsSource = new List<TabItem>
+                    {
+                        new() { Header = "By shop", Content = new ShopView(_project, Status) },
+                        new() { Header = "By item", Content = editors[0] },
+                    },
+                };
+                top.Content = sub;
+                _places[available[0].Name] = (top, sub, 1, editors[0]);
+            }
+            else if (editors.Length == 1)
             {
                 top.Content = editors[0];
                 _places[available[0].Name] = (top, null, 0, editors[0]);

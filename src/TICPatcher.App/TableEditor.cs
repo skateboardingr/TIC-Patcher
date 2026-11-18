@@ -193,17 +193,19 @@ public sealed class TableEditor : UserControl
 
     private Control FieldRow(int id, FieldDef field)
     {
+        // Some fields mean something else depending on the record (a weapon's InflictStatus is a spell under formula 02).
+        field = field.For(other => _project.Current(_schema, id, other));
         var changed = _project.IsChanged(_schema, id, field.Name);
         var label = new TextBlock
         {
-            Text = field.Label ?? field.Name,
+            Text = field.Label ?? Humanize(field.Name),
             Width = 170,
             VerticalAlignment = VerticalAlignment.Center,
             FontWeight = changed ? FontWeight.Bold : FontWeight.Normal,
         };
         if (changed)
             label.Foreground = ChangedBrush;
-        var original = $"Original: {Show(field, _project.Original(_schema, id, field.Name))}";
+        var original = $"Original: {Show(field, _project.Original(_schema, id, field.Name))}\nIn mods (tables.json): {field.Name}";
         ToolTip.SetTip(label, FieldNotes.For(_schema.Name, field.Name) is { } note ? $"{note}\n\n{original}" : original);
         if (field.LinksTo is { } linked)
         {
@@ -226,14 +228,15 @@ public sealed class TableEditor : UserControl
         var users = new List<(TableSchema, int, string)>();
         foreach (var table in AllTables.List.Where(t => _project.HasTable(t.Name)))
         {
-            var links = table.Fields.Where(f => f.LinksTo is { } to && AllTables.ByName[to].RecordNames == _schema.RecordNames
-                && (AllTables.ByName[to] == _schema || _schema.RecordNames is not null)).ToList();
+            var links = table.Fields.Where(f => f.LinksTo is not null || f.When is not null).ToList();
             if (links.Count == 0)
                 continue;
             for (var record = table.FirstId; record < table.FirstId + table.RecordCount; record++)
             {
-                if (!links.Any(f => int.Parse(_project.Current(table, record, f.Name)) is var value && value == id
-                        && AllTables.Resolve(f.LinksTo!, value) == _schema))
+                var current = record;
+                if (!links.Any(f => f.For(other => _project.Current(table, current, other)) is { LinksTo: { } to }
+                        && int.Parse(_project.Current(table, current, f.Name)) is var value && value == id
+                        && AllTables.Resolve(to, value) == _schema))
                     continue;
                 var name = table.NameOf(record);
                 var sameKind = table.RecordNames is not null && table.RecordNames == Items.Common.RecordNames;
@@ -243,6 +246,10 @@ public sealed class TableEditor : UserControl
         // Skip "users" that are just records saying nothing (e.g. empty skill set slots pointing at ability 0).
         return id == 0 && _schema.RecordNames == Abilities.Common.RecordNames ? [] : users;
     }
+
+    /// <summary>"HPConstant" as "HP Constant", "HairAdornment" as "Hair Adornment".</summary>
+    public static string Humanize(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(name, "(?<=[a-z])(?=[A-Z0-9])|(?<=[A-Z])(?=[A-Z][a-z])", " ");
 
     private static TextBlock Link(string text, Action go, Thickness margin)
     {
@@ -272,7 +279,7 @@ public sealed class TableEditor : UserControl
             var panel = new WrapPanel();
             foreach (var name in (field.FlagNames ?? []).OfType<string>())
             {
-                var box = new CheckBox { Content = name, IsChecked = set.Contains(name), Margin = new Thickness(0, 0, 12, 0) };
+                var box = new CheckBox { Content = Humanize(name), Tag = name, IsChecked = set.Contains(name), Margin = new Thickness(0, 0, 12, 0) };
                 if (FieldNotes.For(_schema.Name, field.Name, name) is { } note)
                 {
                     ToolTip.SetTip(box, note);
@@ -280,7 +287,7 @@ public sealed class TableEditor : UserControl
                 }
                 box.IsCheckedChanged += (_, _) =>
                 {
-                    var on = panel.Children.OfType<CheckBox>().Where(b => b.IsChecked == true).Select(b => (string)b.Content!);
+                    var on = panel.Children.OfType<CheckBox>().Where(b => b.IsChecked == true).Select(b => (string)b.Tag!);
                     Commit(id, field, string.Join(", ", on));
                 };
                 panel.Children.Add(box);

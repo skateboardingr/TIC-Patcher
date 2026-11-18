@@ -21,6 +21,7 @@ XML_LISTS = {
     "Effects": ("PSP/Abilities/Effects.xml", "Effect", "value", 16, "name"),
     "Formulas": ("AbilityFormulas.xml", "Ability", "value", 16, None),
     "ShopAvailability": ("PSP/Items/Strings.xml", "ShopAvailabilities/string", "value", 10, "name"),
+    "Errands": ("PSP/Errands.xml", "entry", "value", 10, "name"),
 }
 
 # name: (C# file, enum name). Members count up from 0; [PSPDescription] or [Description] gives the display name.
@@ -28,6 +29,12 @@ ENUM_LISTS = {
     "ItemTypes": ("Datatypes/Items/Item.cs", "ItemSubType"),
     "MenuActions": ("Datatypes/Job/ActionMenu.cs", "MenuAction"),
     "AbilityTypes": ("Datatypes/Abilities/Ability.cs", "AbilityType"),
+    "ErrandTypes": ("Datatypes/Propositions/Proposition.cs", "PropositionType"),
+    "ErrandStats": ("Datatypes/Propositions/Proposition.cs", "BraveFaithNeutral"),
+    "ErrandRewards": ("Datatypes/Propositions/Proposition.cs", "Reward"),
+    "ErrandPrereqs": ("Datatypes/Propositions/Proposition.cs", "PrereqType"),
+    "ErrandClasses": ("Datatypes/Propositions/AllPropositions.cs", "RandomSuccessClass"),
+    "Towns": ("PatcherLib/Datatypes/Shops.cs", "Town"),
 }
 
 

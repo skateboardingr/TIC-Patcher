@@ -24,8 +24,8 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Item Attributes | ✓ | including the remaster's JP Boost byte |
 | Status Effects | ✓ | |
 | Inflict Statuses | ✓ | |
-| Shop Inventories | ◐ | editable per item (which shops sell it); FFTPatcher's per-shop view still to come |
-| Errands (Propositions) | ✗ | found in the executable (`+0x7B768C`); layout still to add |
+| Shop Inventories | ✓ | by shop (pick a town, tick what it sells) or by item |
+| Errands (Propositions) | ◐ | the 96 errands ✓; the bonus and price tables after them still to add |
 | Poaching | ✗ | not in the executable: data-file stage |
 | Move-Find Items | ✗ | not in the executable: data-file stage |
 | ENTD (battles and their units) | ✗ | not in the executable: data-file stage |
