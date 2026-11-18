@@ -37,11 +37,11 @@ public static class Jobs
         RecordCount: 169,
         Fields:
         [
-            FieldDef.U8("SkillSet", 0) with { NameList = Names.SkillSets },
-            FieldDef.U16("InnateA", 1) with { NameList = Names.Abilities },
-            FieldDef.U16("InnateB", 3) with { NameList = Names.Abilities },
-            FieldDef.U16("InnateC", 5) with { NameList = Names.Abilities },
-            FieldDef.U16("InnateD", 7) with { NameList = Names.Abilities },
+            FieldDef.U8("SkillSet", 0) with { NameList = Names.SkillSets, LinksTo = "SkillSets" },
+            FieldDef.U16("InnateA", 1) with { NameList = Names.Abilities, LinksTo = "Abilities" },
+            FieldDef.U16("InnateB", 3) with { NameList = Names.Abilities, LinksTo = "Abilities" },
+            FieldDef.U16("InnateC", 5) with { NameList = Names.Abilities, LinksTo = "Abilities" },
+            FieldDef.U16("InnateD", 7) with { NameList = Names.Abilities, LinksTo = "Abilities" },
             FieldDef.Flags("Equipment", 9, Equipment),
             FieldDef.U8("HPConstant", 14),
             FieldDef.U8("HPMultiplier", 15),

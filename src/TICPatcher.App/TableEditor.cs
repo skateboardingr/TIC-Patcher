@@ -21,6 +21,7 @@ public sealed class TableEditor : UserControl
     private readonly ModProject _project;
     private readonly TableSchema _schema;
     private readonly Action<string> _status;
+    private readonly Action<string, int> _navigate;
     private readonly ListBox _records = new();
     private readonly TextBox _filter = new() { PlaceholderText = "Filter" };
     private readonly CheckBox _changedOnly = new() { Content = "Changed only", Margin = new Thickness(8, 0, 0, 0) };
@@ -31,11 +32,12 @@ public sealed class TableEditor : UserControl
     private readonly List<int> _shown = [];
     private bool _building;
 
-    public TableEditor(ModProject project, TableSchema schema, Action<string> status)
+    public TableEditor(ModProject project, TableSchema schema, Action<string> status, Action<string, int> navigate)
     {
         _project = project;
         _schema = schema;
         _status = status;
+        _navigate = navigate;
 
         var left = new DockPanel { Width = 280 };
         var search = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -62,7 +64,7 @@ public sealed class TableEditor : UserControl
 
     private string Label(int id)
     {
-        var name = _schema.NameOf(id);
+        var name = _schema.Name == Items.Attributes.Name ? AttributeUsers(id) : _schema.NameOf(id);
         var mark = _project.IsChanged(_schema, id) ? " •" : "";
         var hex = _schema.FirstId + _schema.RecordCount > 0x100 ? $"{id:X3}" : $"{id:X2}";
         return name is null ? $"{hex}{mark}" : $"{hex}  {name}{mark}";
@@ -79,6 +81,19 @@ public sealed class TableEditor : UserControl
         _records.ItemsSource = _shown.Select(Label).ToList();
         if (selected is { } id && _shown.IndexOf(id) is >= 0 and var index)
             _records.SelectedIndex = index;
+    }
+
+    /// <summary>Shows a record, clearing any filter that would hide it.</summary>
+    public void Select(int id)
+    {
+        if (!_shown.Contains(id))
+        {
+            _filter.Text = "";
+            _changedOnly.IsChecked = false;
+            FillRecords();
+        }
+        _records.SelectedIndex = _shown.IndexOf(id);
+        _records.ScrollIntoView(_records.SelectedIndex);
     }
 
     private int? SelectedId => _records.SelectedIndex >= 0 && _records.SelectedIndex < _shown.Count ? _shown[_records.SelectedIndex] : null;
@@ -133,6 +148,16 @@ public sealed class TableEditor : UserControl
             VerticalAlignment = VerticalAlignment.Center,
         });
         _fields.Children.Add(header);
+        // The same thing in other tables, e.g. an item's weapon data and shop list.
+        var related = AllTables.Related(_schema, id).Where(t => _project.HasTable(t.Name)).ToList();
+        if (related.Count > 0)
+        {
+            var also = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            also.Children.Add(new TextBlock { Text = "Also:", Opacity = 0.7, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            foreach (var table in related)
+                also.Children.Add(Link($"{table.Name} ›", () => _navigate(table.Name, id), new Thickness(0, 0, 14, 0)));
+            _fields.Children.Add(also);
+        }
         if (FieldNotes.For(_schema.Name) is { } tableNote)
             _fields.Children.Add(new TextBlock { Text = tableNote, TextWrapping = TextWrapping.Wrap, Opacity = 0.7, Margin = new Thickness(0, 0, 0, 6) });
 
@@ -146,7 +171,7 @@ public sealed class TableEditor : UserControl
         var changed = _project.IsChanged(_schema, id, field.Name);
         var label = new TextBlock
         {
-            Text = field.Name,
+            Text = field.Label ?? field.Name,
             Width = 170,
             VerticalAlignment = VerticalAlignment.Center,
             FontWeight = changed ? FontWeight.Bold : FontWeight.Normal,
@@ -155,12 +180,33 @@ public sealed class TableEditor : UserControl
             label.Foreground = ChangedBrush;
         var original = $"Original: {Show(field, _project.Original(_schema, id, field.Name))}";
         ToolTip.SetTip(label, FieldNotes.For(_schema.Name, field.Name) is { } note ? $"{note}\n\n{original}" : original);
+        if (field.LinksTo is { } linked)
+        {
+            // Click the label to edit the record this field points at.
+            label.TextDecorations = TextDecorations.Underline;
+            label.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+            label.PointerPressed += (_, _) => _navigate(linked, int.Parse(_project.Current(_schema, id, field.Name)));
+        }
 
         var row = new DockPanel();
         DockPanel.SetDock(label, Dock.Left);
         row.Children.Add(label);
         row.Children.Add(Editor(id, field));
         return row;
+    }
+
+    private static TextBlock Link(string text, Action go, Thickness margin)
+    {
+        var link = new TextBlock
+        {
+            Text = text,
+            TextDecorations = TextDecorations.Underline,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Margin = margin,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        link.PointerPressed += (_, _) => go();
+        return link;
     }
 
     private static string Show(FieldDef field, string value) =>
@@ -204,6 +250,23 @@ public sealed class TableEditor : UserControl
             row.Children.Add(actions);
             row.Children.Add(panel);
             return row;
+        }
+
+        if (list is null && field.LinksTo is { } target && AllTables.ByName.TryGetValue(target, out var linkedTable))
+        {
+            // Just the entry numbers; what an entry holds is one click away.
+            var ids = Enumerable.Range(linkedTable.FirstId, linkedTable.RecordCount).ToList();
+            var at = ids.IndexOf(int.Parse(current));
+            if (at >= 0)
+            {
+                var combo = new ComboBox { ItemsSource = ids.Select(i => $"{i:X2}").ToList(), SelectedIndex = at, MinWidth = 120, MaxDropDownHeight = 400 };
+                combo.SelectionChanged += (_, _) =>
+                {
+                    if (combo.SelectedIndex >= 0)
+                        Commit(id, field, ids[combo.SelectedIndex].ToString());
+                };
+                return combo;
+            }
         }
 
         if (list is not null)
@@ -256,6 +319,23 @@ public sealed class TableEditor : UserControl
         var flags = _project.Current(Statuses.Inflict, id, "Flags");
         var text = statuses.Length == 0 ? "(no statuses)" : statuses;
         return flags.Length == 0 ? text : $"{text} ({flags})";
+    }
+
+    // The items using an item attributes entry, e.g. "Runeblade" or "Dagger, Mythril Knife +180 more".
+    private string? AttributeUsers(int id)
+    {
+        var users = new List<string>();
+        foreach (var (schema, first, count) in new[] { (Items.Common, 0, 0x100), (Items.Extra, 0x100, 5) })
+            if (_project.HasTable(schema.Name))
+                for (var item = first; item < first + count; item++)
+                    if (_project.Current(schema, item, "SIA") == id.ToString())
+                        users.Add(Names.Get(Names.Items, item) ?? $"item {item:X2}");
+        return users.Count switch
+        {
+            0 => "(unused)",
+            <= 3 => string.Join(", ", users),
+            _ => $"{users[0]}, {users[1]} +{users.Count - 2} more",
+        };
     }
 
     private void Paste(int id)

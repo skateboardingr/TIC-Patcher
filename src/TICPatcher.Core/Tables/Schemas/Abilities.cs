@@ -52,7 +52,7 @@ public static class Abilities
             FieldDef.U8("Formula", 8) with { NameList = Names.Formulas },
             FieldDef.U8("X", 9),
             FieldDef.U8("Y", 10),
-            FieldDef.U8("InflictStatus", 11) with { NameList = Names.InflictStatuses },
+            FieldDef.U8("InflictStatus", 11) with { NameList = Names.InflictStatuses, LinksTo = "InflictStatuses" },
             FieldDef.U8("Ticks", 12),
             FieldDef.U8("MPCost", 13),
             FieldDef.U8("New14", 14),

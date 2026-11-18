@@ -27,7 +27,7 @@ public static class Items
             FieldDef.U8("SecondTableId", 4),
             FieldDef.U8("ItemType", 5) with { NameList = Names.ItemTypes },
             FieldDef.U8("Unknown1", 6),
-            FieldDef.U8("SIA", 7),
+            FieldDef.U8("SIA", 7) with { Label = "Item Attributes", LinksTo = "ItemAttributes" },
             FieldDef.U16("Price", 8),
             FieldDef.U8("ShopAvailability", 10) with { NameList = Names.ShopAvailability },
             FieldDef.U8("Unknown2", 11),
@@ -47,7 +47,7 @@ public static class Items
             FieldDef.U8("WeaponPower", 4),
             FieldDef.U8("EvadePercentage", 5),
             FieldDef.Flags("Elements", 6, Jobs.Elements),
-            FieldDef.U8("InflictStatus", 7) with { NameList = Names.InflictStatuses },
+            FieldDef.U8("InflictStatus", 7) with { NameList = Names.InflictStatuses, LinksTo = "InflictStatuses" },
         ],
         Source: "FFTPatcher Datatypes/Items/Weapon.cs, AllItems.cs") { RecordNames = Names.Items };
 
@@ -68,7 +68,7 @@ public static class Items
 
     public static readonly TableSchema ChemistItems = new(
         "ChemistItems", RecordSize: 3, RecordCount: 0x0E,
-        Fields: [FieldDef.U8("Formula", 0) with { NameList = Names.Formulas }, FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2) with { NameList = Names.InflictStatuses }],
+        Fields: [FieldDef.U8("Formula", 0) with { NameList = Names.Formulas }, FieldDef.U8("X", 1), FieldDef.U8("InflictStatus", 2) with { NameList = Names.InflictStatuses, LinksTo = "InflictStatuses" }],
         Source: "FFTPatcher Datatypes/Items/ChemistItem.cs, AllItems.cs") { FirstId = 0xF0, RecordNames = Names.Items };
 
     public static readonly TableSchema Attributes = new(
@@ -113,16 +113,14 @@ public static class Items
 
     public static readonly TableSchema Extra = Common with
     {
-        Name = "ExtraItems", RecordCount = 5, FirstId = 0x100, RecordNames = null,
-        RecordName = id => ExtraNames.GetValueOrDefault(id),
+        Name = "ExtraItems", RecordCount = 5, FirstId = 0x100, RecordNames = Names.Items,
         Source = "Found in TIC by its attribute ids; layout as FFTPatcher Datatypes/Items/Item.cs",
     };
 
     /// <summary>Weapon data for the two extra swords (Materia Blade+, Akademy Blade), stored just before <see cref="Extra"/>.</summary>
     public static readonly TableSchema ExtraWeapons = Weapons with
     {
-        Name = "ExtraWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = null,
-        RecordName = id => ExtraNames.GetValueOrDefault(id),
+        Name = "ExtraWeapons", RecordCount = 2, FirstId = 0x100, RecordNames = Names.Items,
         Source = "Found in TIC next to the extra items; layout as FFTPatcher Datatypes/Items/Weapon.cs",
     };
 
@@ -132,8 +130,7 @@ public static class Items
     /// </summary>
     public static readonly TableSchema ExtraArmor = Armor with
     {
-        Name = "ExtraArmor", RecordCount = 2, FirstId = 0x102, RecordNames = null,
-        RecordName = id => ExtraNames.GetValueOrDefault(id),
+        Name = "ExtraArmor", RecordCount = 2, FirstId = 0x102, RecordNames = Names.Items,
         Source = "Found in TIC through its lookup code; layout as FFTPatcher Datatypes/Items/Armor.cs",
     };
 

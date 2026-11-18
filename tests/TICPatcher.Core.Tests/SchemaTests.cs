@@ -73,6 +73,26 @@ public class SchemaTests
     }
 
     [Fact]
+    public void LinksFindTheTableHoldingTheRecord()
+    {
+        Assert.Equal("SkillSets", AllTables.Resolve("SkillSets", 0x05)?.Name);
+        Assert.Equal("MonsterSkills", AllTables.Resolve("SkillSets", 0xB0)?.Name);
+        Assert.Equal("SkillSetsExtra", AllTables.Resolve("SkillSets", 0xE1)?.Name);
+        Assert.Equal("ItemAttributes", AllTables.Resolve("ItemAttributes", 0x01)?.Name);
+        Assert.Null(AllTables.Resolve("ItemAttributes", 0x99));
+        // Every link points at a real table.
+        foreach (var field in AllTables.List.SelectMany(t => t.Fields).Where(f => f.LinksTo is not null))
+            Assert.True(AllTables.ByName.ContainsKey(field.LinksTo!), field.LinksTo);
+
+        var runeblade = AllTables.Related(Items.Common, 0x1E).Select(t => t.Name).ToList();
+        Assert.Contains("Weapons", runeblade);
+        Assert.Contains("ShopInventories", runeblade);
+        Assert.DoesNotContain("Armor", runeblade);
+        Assert.Contains("ActionAbilities", AllTables.Related(Abilities.Common, 0x01).Select(t => t.Name));
+        Assert.Equal(["ExtraItems"], AllTables.Related(Items.ExtraWeapons, 0x101).Select(t => t.Name));
+    }
+
+    [Fact]
     public void IdentifiesBuildsByTheirPeHeader()
     {
         var known = GameBuilds.Known[0];

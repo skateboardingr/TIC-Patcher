@@ -41,6 +41,8 @@ public static class FieldNotes
         ["Weapons.Unknown"] = "FF on every weapon in the original game.",
         ["Items.Unknown1"] = "0 on every item in the original game.",
         ["Items.Unknown2"] = "0 on every item in the original game.",
+        ["Items.SIA"] = "Which Item Attributes entry this item uses (click the label to edit it): its stat bonuses (e.g. Runeblade's MA +2), statuses and elements. Entries are shared: 0 gives nothing and is used by most items, so to give one item a bonus, point it at an unused entry rather than changing a shared one.",
+        ["ItemAttributes"] = "Stat bonuses, statuses and elements, used by items through their Item Attributes field. An entry can be shared by several items: changing it changes all of them (listed next to each entry).",
     };
 
     private const string NewAbilityBytes =

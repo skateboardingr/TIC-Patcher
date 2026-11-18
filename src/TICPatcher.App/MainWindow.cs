@@ -165,24 +165,52 @@ public sealed class MainWindow : Window
         var tabs = new TabControl();
         _mods = new ModsView(Status, mod => _ = OpenModFile(Path.Combine(mod.Folder, ModCollector.TablesFile)));
         tabs.Items.Add(new TabItem { Header = "Mods", Content = _mods });
+        _places.Clear();
         foreach (var (tab, tables) in Groups)
         {
             var available = tables.Where(t => _project.HasTable(t.Name)).ToArray();
             if (available.Length == 0)
                 continue;
-            object content = available.Length == 1
-                ? new TableEditor(_project, available[0], Status)
-                : new TabControl
-                {
-                    ItemsSource = available.Select(t => new TabItem { Header = t.Name, Content = new TableEditor(_project, t, Status) }).ToList(),
-                };
-            tabs.Items.Add(new TabItem { Header = tab, Content = content });
+            var editors = available.Select(t => new TableEditor(_project, t, Status, Navigate)).ToArray();
+            var top = new TabItem { Header = tab };
+            if (editors.Length == 1)
+            {
+                top.Content = editors[0];
+                _places[available[0].Name] = (top, null, 0, editors[0]);
+            }
+            else
+            {
+                var sub = new TabControl { ItemsSource = available.Select((t, i) => new TabItem { Header = t.Name, Content = editors[i] }).ToList() };
+                top.Content = sub;
+                for (var i = 0; i < available.Length; i++)
+                    _places[available[i].Name] = (top, sub, i, editors[i]);
+            }
+            tabs.Items.Add(top);
         }
+        _tabs = tabs;
         tabs.SelectedIndex = 1; // straight to editing; Mods is one click away
         _body.Content = tabs;
         SaveSession();
         Status($"{message} ({vanilla.BuildName})");
         UpdateTitle();
+    }
+
+    // Where each table's editor sits, so a field like an item's Item Attributes can jump to its entry.
+    private readonly Dictionary<string, (TabItem Top, TabControl? Sub, int Index, TableEditor Editor)> _places = new(StringComparer.Ordinal);
+    private TabControl? _tabs;
+
+    private void Navigate(string table, int id)
+    {
+        // The id may live in a sibling table, e.g. skill set 0xB0 is a monster skill set.
+        if (_tabs is null || AllTables.Resolve(table, id) is not { } holder || !_places.TryGetValue(holder.Name, out var place))
+        {
+            Status($"Nothing to show for {table} {id:X2}.");
+            return;
+        }
+        _tabs.SelectedItem = place.Top;
+        if (place.Sub is not null)
+            place.Sub.SelectedIndex = place.Index;
+        place.Editor.Select(id);
     }
 
     private void UpdateTitle()
