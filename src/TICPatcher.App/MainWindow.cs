@@ -35,6 +35,7 @@ public sealed class MainWindow : Window
     private readonly TextBlock _status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(10, 6) };
     private ModProject? _project;
     private ModsView? _mods;
+    private string? _modId; // the Reloaded-II mod being edited; null for a new mod
     private string? _path;
     private readonly TextBox _modName = new() { PlaceholderText = "Mod name", Width = 200 };
 
@@ -47,20 +48,34 @@ public sealed class MainWindow : Window
         var find = new Button { Content = "Find game…" };
         ToolTip.SetTip(find, "Pick FFT_enhanced.exe if TIC Patcher didn't find your game.");
         find.Click += async (_, _) => await FindGame();
-        var open = new Button { Content = "Open mod…" };
-        var save = new Button { Content = "Save mod…" };
+        var open = new Button { Content = "Import…" };
+        ToolTip.SetTip(open, "Open a tables.json, e.g. one someone shared. Save mod then adds it to your mods.");
+        var newMod = new Button { Content = "New" };
+        ToolTip.SetTip(newMod, "Start a new mod from the game's original values.");
+        newMod.Click += (_, _) => NewMod();
+        var save = new Button { Content = "Save mod" };
+        ToolTip.SetTip(save, "Save this mod into Reloaded-II. It appears in the Mods tab.");
+        var export = new Button { Content = "Export…" };
+        ToolTip.SetTip(export, "Save the changes as a tables.json file, e.g. to share.");
+        export.Click += async (_, _) => await ExportMod();
         var play = new Button { Content = "▶ Play" };
         ToolTip.SetTip(play, "Install this mod into Reloaded-II, turn it on, and start the game with it.");
         play.Click += (_, _) => Play();
-        _modName.TextChanged += (_, _) => UpdateTitle();
+        _modName.TextChanged += (_, _) =>
+        {
+            UpdateTitle();
+            SaveSession();
+        };
         open.Click += async (_, _) => await OpenMod();
-        save.Click += async (_, _) => await SaveMod();
+        save.Click += (_, _) => SaveMod();
 
         var toolbar = new DockPanel { Margin = new Thickness(8) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(find);
         buttons.Children.Add(open);
+        buttons.Children.Insert(0, newMod);
         buttons.Children.Add(save);
+        buttons.Children.Add(export);
         buttons.Children.Add(new TextBlock { Text = "Mod:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
         buttons.Children.Add(_modName);
         buttons.Children.Add(play);
@@ -80,12 +95,16 @@ public sealed class MainWindow : Window
         var image = Array.IndexOf(args, "--from-image") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         if (image is not null)
             Load(VanillaData.FromImage(File.ReadAllBytes(image)), $"Read {image}");
-        else if (!TryLoadExecutable(GameLocator.Find()))
+        else
         {
-            if (VanillaData.Saved().FirstOrDefault() is { } saved)
-                Load(VanillaData.Load(saved), "Original values loaded from this PC's copy.");
-            else
-                ShowWelcome();
+            if (!TryLoadExecutable(GameLocator.Find()))
+            {
+                if (VanillaData.Saved().FirstOrDefault() is { } saved)
+                    Load(VanillaData.Load(saved), "Original values loaded from this PC's copy.");
+                else
+                    ShowWelcome();
+            }
+            RestoreSession();
         }
     }
 
@@ -142,6 +161,7 @@ public sealed class MainWindow : Window
     {
         _project = new ModProject(vanilla, edits);
         _project.Changed += UpdateTitle;
+        _project.Changed += SaveSession;
         var tabs = new TabControl();
         _mods = new ModsView(Status, mod => _ = OpenModFile(Path.Combine(mod.Folder, ModCollector.TablesFile)));
         tabs.Items.Add(new TabItem { Header = "Mods", Content = _mods });
@@ -160,6 +180,7 @@ public sealed class MainWindow : Window
         }
         tabs.SelectedIndex = 1; // straight to editing; Mods is one click away
         _body.Content = tabs;
+        SaveSession();
         Status($"{message} ({vanilla.BuildName})");
         UpdateTitle();
     }
@@ -224,7 +245,7 @@ public sealed class MainWindow : Window
         }
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Open a TIC mod's tables.json",
+            Title = "Import a TIC mod's tables.json",
             FileTypeFilter = [TablesJson],
         });
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
@@ -239,11 +260,25 @@ public sealed class MainWindow : Window
         {
             var edits = TableEdits.Parse(await File.ReadAllTextAsync(path));
             _path = path;
-            // A mod opened from its folder (…/<mod>/TIC/tables.json) keeps its name.
+            // A mod opened from its folder (…/<mod>/TIC/tables.json) keeps its name and id,
+            // so saving updates that mod rather than making a new one.
+            _modId = null;
             var config = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(path)) ?? "", "ModConfig.json");
-            if (File.Exists(config) && System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(config))?["ModName"] is { } name)
-                _modName.Text = (string?)name;
-            Load(_project.Vanilla, $"Opened {path}", edits);
+            if (File.Exists(config) && System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(config)) is { } mod)
+            {
+                _modId = (string?)mod["ModId"];
+                if ((string?)mod["ModName"] is { } name)
+                    _modName.Text = name;
+            }
+            else
+            {
+                // A loose file becomes a new mod, named after the file unless it's just "tables.json".
+                var file = Path.GetFileNameWithoutExtension(path);
+                _modName.Text = file.Equals("tables", StringComparison.OrdinalIgnoreCase) ? "Imported mod" : file;
+            }
+            Load(_project.Vanilla, _modId is null
+                ? $"Imported {path}. Name it above and press Save mod to add it to your mods."
+                : $"Opened {_modName.Text}.", edits);
         }
         catch (Exception error) when (error is FormatException or IOException or System.Text.Json.JsonException)
         {
@@ -283,18 +318,16 @@ public sealed class MainWindow : Window
             Status("Couldn't install TIC Loader into Reloaded-II: " + error.Message);
             return;
         }
-        var name = string.IsNullOrWhiteSpace(_modName.Text) ? "My TIC mod" : _modName.Text.Trim();
-        var id = ReloadedSetup.IdFor(name);
+        var name = ModName;
         try
         {
-            var folder = reloaded.Install(id, name, Environment.UserName, "Made with TIC Patcher.", _project.Edits.ToJson());
+            var id = InstallCurrent(reloaded);
             if (!reloaded.Enable(id))
             {
                 Status("Add the game to Reloaded-II first (Add an Application, pick FFT_enhanced.exe).");
                 return;
             }
             Process.Start(reloaded.LaunchCommand());
-            _path = Path.Combine(folder, ModCollector.TablesFile);
             UpdateTitle();
             Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with \"{name}\" ({_project.Edits.All.Count()} change(s)).");
             _mods?.Fill();
@@ -305,13 +338,97 @@ public sealed class MainWindow : Window
         }
     }
 
-    private async Task SaveMod()
+    // Remembers the mod being edited, as it's edited, so closing the editor never loses work.
+    private void SaveSession()
+    {
+        if (_restoring || _project is null)
+            return;
+        try
+        {
+            new EditorSession(_modId, ModName, _project.Edits.ToJson()).Save();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Status("Couldn't remember this session: " + error.Message);
+        }
+    }
+
+    private bool _restoring;
+
+    private void RestoreSession()
+    {
+        if (_project is null || EditorSession.Load() is not { } session)
+            return;
+        TableEdits edits;
+        try
+        {
+            edits = TableEdits.Parse(session.TablesJson);
+        }
+        catch (Exception error) when (error is FormatException or System.Text.Json.JsonException)
+        {
+            Status("Couldn't restore your last session: " + error.Message);
+            return;
+        }
+        _restoring = true;
+        _modId = session.ModId;
+        _modName.Text = session.ModName;
+        _restoring = false;
+        var count = edits.All.Count();
+        Load(_project.Vanilla, count == 0 ? $"Ready: {session.ModName}." : $"Picked up where you left off: {session.ModName} ({count} change(s)).", edits);
+    }
+
+    private string ModName => string.IsNullOrWhiteSpace(_modName.Text) ? "My TIC mod" : _modName.Text.Trim();
+
+    // Writes the mod into Reloaded-II's Mods folder: the mod being edited, or a new one named after the mod name.
+    private string InstallCurrent(ReloadedSetup reloaded)
+    {
+        var id = _modId ?? ReloadedSetup.IdFor(ModName);
+        var folder = reloaded.Install(id, ModName, Environment.UserName, "Made with TIC Patcher.", _project!.Edits.ToJson());
+        _modId = id;
+        _path = Path.Combine(folder, ModCollector.TablesFile);
+        _mods?.Fill();
+        SaveSession();
+        return id;
+    }
+
+    private void NewMod()
+    {
+        if (_project is null)
+            return;
+        _modId = null;
+        _path = null;
+        _modName.Text = "My TIC mod";
+        Load(_project.Vanilla, "New mod: every value is the game's original.");
+    }
+
+    private void SaveMod()
+    {
+        if (_project is null)
+            return;
+        if (ReloadedSetup.Find(out var problem) is not { } reloaded)
+        {
+            Status(problem + " Use Export… to save the changes as a file instead.");
+            return;
+        }
+        try
+        {
+            InstallCurrent(reloaded);
+            UpdateTitle();
+            Status($"Saved \"{ModName}\" ({_project.Edits.All.Count()} change(s)). It's in the Mods tab; tick it there, or press Play.");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Status("Couldn't save: " + error.Message);
+        }
+    }
+
+    private async Task ExportMod()
     {
         if (_project is null)
             return;
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save the mod's tables.json (in the mod's TIC folder)",
+            Title = "Export the mod's changes as tables.json",
             SuggestedFileName = "tables.json",
             DefaultExtension = "json",
             FileTypeChoices = [TablesJson],
@@ -320,8 +437,6 @@ public sealed class MainWindow : Window
             return;
         await File.WriteAllTextAsync(path + ".tmp", _project.Edits.ToJson());
         File.Move(path + ".tmp", path, overwrite: true);
-        _path = path;
-        UpdateTitle();
-        Status($"Saved {_project.Edits.All.Count()} change(s) to {path}");
+        Status($"Exported {_project.Edits.All.Count()} change(s) to {path}");
     }
 }

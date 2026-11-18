@@ -94,3 +94,28 @@ public class ProjectTests
         Assert.Null(Names.Get(Names.Items, 0x138)); // Tynar Rouge isn't in TIC
     }
 }
+
+public class SessionTests
+{
+    [Fact]
+    public void SessionsRoundTripAndBadFilesAreIgnored()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"tic-session-{Guid.NewGuid():N}.json");
+        try
+        {
+            new EditorSession("tic.mod.ng", "NG+ Mod", "{ \"Jobs\": { \"0x01\": { \"Move\": 6 } } }").Save(path);
+            var loaded = EditorSession.Load(path)!;
+            Assert.Equal("tic.mod.ng", loaded.ModId);
+            Assert.Equal("NG+ Mod", loaded.ModName);
+            Assert.Equal("6", TableEdits.Parse(loaded.TablesJson).Get("Jobs", 1, "Move"));
+
+            File.WriteAllText(path, "{ broken");
+            Assert.Null(EditorSession.Load(path));
+            Assert.Null(EditorSession.Load(path + ".missing"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}
