@@ -190,7 +190,20 @@ public sealed class TableEditor : UserControl
                 };
                 panel.Children.Add(box);
             }
-            return panel;
+            // Tick or clear every named flag at once (e.g. sell an item in every shop).
+            var named = (field.FlagNames ?? []).OfType<string>().ToList();
+            var all = new Button { Content = "All", Padding = new Thickness(8, 2), FontSize = 12 };
+            all.Click += (_, _) => Commit(id, field, string.Join(", ", named));
+            var clear = new Button { Content = "Clear", Padding = new Thickness(8, 2), FontSize = 12 };
+            clear.Click += (_, _) => Commit(id, field, "");
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Top };
+            actions.Children.Add(all);
+            actions.Children.Add(clear);
+            var row = new DockPanel();
+            DockPanel.SetDock(actions, Dock.Left);
+            row.Children.Add(actions);
+            row.Children.Add(panel);
+            return row;
         }
 
         if (list is not null)
