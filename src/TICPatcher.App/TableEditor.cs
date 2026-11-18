@@ -31,6 +31,7 @@ public sealed class TableEditor : UserControl
     private readonly StackPanel _fields = new() { Spacing = 6, Margin = new Thickness(12, 0, 12, 12) };
     private readonly List<int> _shown = [];
     private bool _building;
+    private bool _stale; // the mod changed while another tab was showing
 
     public TableEditor(ModProject project, TableSchema schema, Action<string> status, Action<string, int> navigate)
     {
@@ -55,6 +56,17 @@ public sealed class TableEditor : UserControl
         grid.Children.Add(right);
         Content = grid;
 
+        // Labels, "Used by" lists and linked dropdowns depend on other tables,
+        // so redraw when coming back to this tab after any change.
+        _project.Changed += () => _stale = true;
+        AttachedToVisualTree += (_, _) =>
+        {
+            if (!_stale)
+                return;
+            _stale = false;
+            FillRecords();
+            ShowRecord();
+        };
         _filter.TextChanged += (_, _) => FillRecords();
         _changedOnly.IsCheckedChanged += (_, _) => FillRecords();
         _records.SelectionChanged += (_, _) => ShowRecord();
@@ -158,6 +170,19 @@ public sealed class TableEditor : UserControl
                 also.Children.Add(Link($"{table.Name} ›", () => _navigate(table.Name, id), new Thickness(0, 0, 14, 0)));
             _fields.Children.Add(also);
         }
+        // Everything pointing at this record, e.g. the items using an item attributes entry.
+        var users = UsersOf(id);
+        if (users.Count > 0)
+        {
+            const int Shown = 15;
+            var used = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            used.Children.Add(new TextBlock { Text = "Used by:", Opacity = 0.7, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            foreach (var (table, record, text) in users.Take(Shown))
+                used.Children.Add(Link(text, () => _navigate(table.Name, record), new Thickness(0, 0, 12, 0)));
+            if (users.Count > Shown)
+                used.Children.Add(new TextBlock { Text = $"+{users.Count - Shown} more", Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center });
+            _fields.Children.Add(used);
+        }
         if (FieldNotes.For(_schema.Name) is { } tableNote)
             _fields.Children.Add(new TextBlock { Text = tableNote, TextWrapping = TextWrapping.Wrap, Opacity = 0.7, Margin = new Thickness(0, 0, 0, 6) });
 
@@ -193,6 +218,30 @@ public sealed class TableEditor : UserControl
         row.Children.Add(label);
         row.Children.Add(Editor(id, field));
         return row;
+    }
+
+    // Records in any table whose linked field points at this record.
+    private List<(TableSchema Table, int Record, string Text)> UsersOf(int id)
+    {
+        var users = new List<(TableSchema, int, string)>();
+        foreach (var table in AllTables.List.Where(t => _project.HasTable(t.Name)))
+        {
+            var links = table.Fields.Where(f => f.LinksTo is { } to && AllTables.ByName[to].RecordNames == _schema.RecordNames
+                && (AllTables.ByName[to] == _schema || _schema.RecordNames is not null)).ToList();
+            if (links.Count == 0)
+                continue;
+            for (var record = table.FirstId; record < table.FirstId + table.RecordCount; record++)
+            {
+                if (!links.Any(f => int.Parse(_project.Current(table, record, f.Name)) is var value && value == id
+                        && AllTables.Resolve(f.LinksTo!, value) == _schema))
+                    continue;
+                var name = table.NameOf(record);
+                var sameKind = table.RecordNames is not null && table.RecordNames == Items.Common.RecordNames;
+                users.Add((table, record, name is not null && sameKind ? name : $"{table.Name} {record:X2}{(name is null ? "" : " " + name)}"));
+            }
+        }
+        // Skip "users" that are just records saying nothing (e.g. empty skill set slots pointing at ability 0).
+        return id == 0 && _schema.RecordNames == Abilities.Common.RecordNames ? [] : users;
     }
 
     private static TextBlock Link(string text, Action go, Thickness margin)
