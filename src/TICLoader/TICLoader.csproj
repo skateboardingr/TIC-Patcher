@@ -10,6 +10,8 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <OutputPath>bin/$(Configuration)/tic.loader</OutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Lets the editor's build (which embeds TIC Loader) run on Linux too. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>

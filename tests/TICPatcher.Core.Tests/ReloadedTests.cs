@@ -83,6 +83,53 @@ public sealed class ReloadedTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => reloaded.LaunchCommand());
     }
 
+    private static void ModFolder(ReloadedSetup reloaded, string id, string json, bool tables = false)
+    {
+        var folder = Path.Combine(reloaded.ModsFolder, id);
+        Directory.CreateDirectory(Path.Combine(folder, "TIC"));
+        File.WriteAllText(Path.Combine(folder, "ModConfig.json"), json);
+        if (tables)
+            File.WriteAllText(Path.Combine(folder, "TIC", "tables.json"), "{ }");
+    }
+
+    [Fact]
+    public void ListsThisGamesModsAndTurnsThemOnAndOff()
+    {
+        var reloaded = Setup();
+        ModFolder(reloaded, "tic.mod.a", """{ "ModId": "tic.mod.a", "ModName": "B mod", "ModDependencies": ["tic.loader"] }""", tables: true);
+        ModFolder(reloaded, "someone.else", """{ "ModId": "someone.else", "ModName": "A mod", "SupportedAppId": ["FFT_enhanced.exe"] }""");
+        ModFolder(reloaded, "other.game", """{ "ModId": "other.game", "SupportedAppId": ["p5r.exe"] }""");
+        ModFolder(reloaded, "tic.loader", """{ "ModId": "tic.loader", "ModVersion": "0.1.0", "SupportedAppId": ["fft_enhanced.exe"] }""");
+        ModFolder(reloaded, "broken", "{ not json");
+
+        var mods = reloaded.GameMods();
+        Assert.Equal(["A mod", "B mod"], mods.Select(m => m.Name));
+        Assert.True(mods.Single(m => m.Id == "tic.mod.a").HasTables);
+
+        reloaded.SetEnabled("tic.mod.a", true);
+        Assert.Equal(["other.mod", "tic.mod.a"], reloaded.EnabledMods());
+        reloaded.SetEnabled("other.mod", false);
+        reloaded.SetEnabled("not.there", false);
+        Assert.Equal(["tic.mod.a"], reloaded.EnabledMods());
+    }
+
+    [Fact]
+    public void InstallsAndUpdatesTicLoaderKeepingOtherFiles()
+    {
+        var reloaded = Setup();
+        Assert.Null(reloaded.LoaderVersion());
+        reloaded.InstallLoader([("ModConfig.json", """{ "ModId": "tic.loader", "ModVersion": "0.1.0" }"""u8.ToArray()), ("tic.loader.dll", [1])]);
+        Assert.Equal(new Version(0, 1, 0), reloaded.LoaderVersion());
+        Assert.True(reloaded.LoaderInstalled);
+
+        var watch = Path.Combine(reloaded.ModsFolder, "tic.loader", "watch.json");
+        File.WriteAllText(watch, "{ }");
+        reloaded.InstallLoader([("ModConfig.json", """{ "ModId": "tic.loader", "ModVersion": "0.2.0" }"""u8.ToArray()), ("tic.loader.dll", [2])]);
+        Assert.Equal(new Version(0, 2, 0), reloaded.LoaderVersion());
+        Assert.True(File.Exists(watch));
+        Assert.Equal([2], File.ReadAllBytes(Path.Combine(reloaded.ModsFolder, "tic.loader", "tic.loader.dll")));
+    }
+
     [Theory]
     [InlineData("Faster Chocobos", "tic.mod.faster-chocobos")]
     [InlineData("  Ramza's Move+2!! ", "tic.mod.ramza-s-move-2")]

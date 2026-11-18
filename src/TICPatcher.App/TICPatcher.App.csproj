@@ -19,4 +19,17 @@
     <ProjectReference Include="../TICPatcher.Core/TICPatcher.Core.csproj" />
   </ItemGroup>
 
+  <!-- TIC Loader travels inside the editor, which installs or updates it in
+       Reloaded-II: built first as a dependency (not linked in), then its files
+       are embedded as TICLoader/<name>. -->
+  <ItemGroup>
+    <ProjectReference Include="../TICLoader/TICLoader.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <Target Name="EmbedTICLoader" AfterTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <_TICLoaderFile Include="../TICLoader/bin/$(Configuration)/tic.loader/*" Exclude="../TICLoader/bin/$(Configuration)/tic.loader/*.pdb;../TICLoader/bin/$(Configuration)/tic.loader/watch*" />
+      <EmbeddedResource Include="@(_TICLoaderFile)" LogicalName="TICLoader/%(_TICLoaderFile.Filename)%(_TICLoaderFile.Extension)" />
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -34,6 +34,7 @@ public sealed class MainWindow : Window
     private readonly ContentControl _body = new();
     private readonly TextBlock _status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(10, 6) };
     private ModProject? _project;
+    private ModsView? _mods;
     private string? _path;
     private readonly TextBox _modName = new() { PlaceholderText = "Mod name", Width = 200 };
 
@@ -142,6 +143,8 @@ public sealed class MainWindow : Window
         _project = new ModProject(vanilla, edits);
         _project.Changed += UpdateTitle;
         var tabs = new TabControl();
+        _mods = new ModsView(Status, mod => _ = OpenModFile(Path.Combine(mod.Folder, ModCollector.TablesFile)));
+        tabs.Items.Add(new TabItem { Header = "Mods", Content = _mods });
         foreach (var (tab, tables) in Groups)
         {
             var available = tables.Where(t => _project.HasTable(t.Name)).ToArray();
@@ -155,6 +158,7 @@ public sealed class MainWindow : Window
                 };
             tabs.Items.Add(new TabItem { Header = tab, Content = content });
         }
+        tabs.SelectedIndex = 1; // straight to editing; Mods is one click away
         _body.Content = tabs;
         Status($"{message} ({vanilla.BuildName})");
         UpdateTitle();
@@ -211,7 +215,7 @@ public sealed class MainWindow : Window
         }
     }
 
-        private async Task OpenMod()
+    private async Task OpenMod()
     {
         if (_project is null)
         {
@@ -223,7 +227,13 @@ public sealed class MainWindow : Window
             Title = "Open a TIC mod's tables.json",
             FileTypeFilter = [TablesJson],
         });
-        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+            await OpenModFile(path);
+    }
+
+    private async Task OpenModFile(string path)
+    {
+        if (_project is null)
             return;
         try
         {
@@ -263,9 +273,14 @@ public sealed class MainWindow : Window
             Status(problem);
             return;
         }
-        if (!reloaded.LoaderInstalled)
+        string? loaderNews;
+        try
         {
-            Status("TIC Loader isn't in Reloaded-II's Mods folder yet; install it first.");
+            loaderNews = LoaderBundle.EnsureInstalled(reloaded);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Status("Couldn't install TIC Loader into Reloaded-II: " + error.Message);
             return;
         }
         var name = string.IsNullOrWhiteSpace(_modName.Text) ? "My TIC mod" : _modName.Text.Trim();
@@ -281,7 +296,8 @@ public sealed class MainWindow : Window
             Process.Start(reloaded.LaunchCommand());
             _path = Path.Combine(folder, ModCollector.TablesFile);
             UpdateTitle();
-            Status($"Started the game with \"{name}\" ({_project.Edits.All.Count()} change(s)).");
+            Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with \"{name}\" ({_project.Edits.All.Count()} change(s)).");
+            _mods?.Fill();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
