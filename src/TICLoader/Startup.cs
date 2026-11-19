@@ -113,6 +113,9 @@ public class Startup : IMod
             }
             _api.RaiseTablesApplied(Log);
 
+            if (edits.AllText.Any())
+                ApplyText(memory, edits);
+
             if (watch is not null)
             {
                 if (build is null)
@@ -124,6 +127,32 @@ public class Startup : IMod
         catch (Exception error)
         {
             Log("failed: " + error);
+        }
+    }
+
+    // Names and descriptions: the game loads its text tables on its own schedule,
+    // so keep looking for a while until every table the mods change is done.
+    private void ApplyText(ProcessMemory memory, TableEdits edits)
+    {
+        var tables = edits.AllText.Select(e => e.Table).Distinct().Count();
+        var done = new TICPatcher.Core.Text.TextApplier.Done();
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            var attempt = Stopwatch.StartNew();
+            var count = TICPatcher.Core.Text.TextApplier.Relocate(memory, edits, done, Log);
+            Log($"text: looked in {attempt.ElapsedMilliseconds} ms, {count} of {tables} table(s) done");
+            if (count >= tables)
+            {
+                Log($"text: all {tables} table(s) changed");
+                return;
+            }
+            if (waited.Elapsed > TimeSpan.FromMinutes(3))
+            {
+                Log($"text: only {done.Tables.Count} of {tables} table(s) were found; the rest is unchanged");
+                return;
+            }
+            Thread.Sleep(3000);
         }
     }
 

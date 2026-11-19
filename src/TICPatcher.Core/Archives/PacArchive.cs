@@ -88,6 +88,7 @@ public sealed class PacArchive
     public PacEntry? Find(string name) => Entries.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>A file's contents, decompressed.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public byte[] Read(PacEntry entry, GDeflate codec)
     {
         using var file = File.OpenRead(Path);

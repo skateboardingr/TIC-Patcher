@@ -230,7 +230,7 @@ public sealed class MainWindow : Window
 
     private void UpdateTitle()
     {
-        var count = _project?.Edits.All.Count() ?? 0;
+        var count = _project?.Edits.Count ?? 0;
         var name = string.IsNullOrWhiteSpace(_modName.Text) ? "new mod" : _modName.Text.Trim();
         Title = $"TIC Patcher - {name}{(count > 0 ? $" ({count} change{(count == 1 ? "" : "s")})" : "")}";
     }
@@ -372,7 +372,7 @@ public sealed class MainWindow : Window
             }
             Process.Start(reloaded.LaunchCommand());
             UpdateTitle();
-            Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with \"{name}\" ({_project.Edits.All.Count()} change(s)).");
+            Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with \"{name}\" ({_project.Edits.Count} change(s)).");
             _mods?.Fill();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
@@ -416,7 +416,7 @@ public sealed class MainWindow : Window
         _modId = session.ModId;
         _modName.Text = session.ModName;
         _restoring = false;
-        var count = edits.All.Count();
+        var count = edits.Count;
         Load(_project.Vanilla, count == 0 ? $"Ready: {session.ModName}." : $"Picked up where you left off: {session.ModName} ({count} change(s)).", edits);
     }
 
@@ -457,7 +457,7 @@ public sealed class MainWindow : Window
         {
             InstallCurrent(reloaded);
             UpdateTitle();
-            Status($"Saved \"{ModName}\" ({_project.Edits.All.Count()} change(s)). It's in the Mods tab; tick it there, or press Play.");
+            Status($"Saved \"{ModName}\" ({_project.Edits.Count} change(s)). It's in the Mods tab; tick it there, or press Play.");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -480,6 +480,6 @@ public sealed class MainWindow : Window
             return;
         await File.WriteAllTextAsync(path + ".tmp", _project.Edits.ToJson());
         File.Move(path + ".tmp", path, overwrite: true);
-        Status($"Exported {_project.Edits.All.Count()} change(s) to {path}");
+        Status($"Exported {_project.Edits.Count} change(s) to {path}");
     }
 }

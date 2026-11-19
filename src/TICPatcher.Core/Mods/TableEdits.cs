@@ -20,7 +20,54 @@ public sealed class TableEdits
 
     public static IReadOnlyDictionary<string, TableSchema> KnownTables => Tables.Schemas.AllTables.ByName;
 
-    public bool IsEmpty => _edits.Count == 0;
+    // Text edits, kept apart from the stat tables: text table -> id -> field -> text.
+    private readonly Dictionary<string, SortedDictionary<int, Dictionary<string, string>>> _text = new(StringComparer.Ordinal);
+
+    /// <summary>The section of tables.json holding text edits (names, descriptions).</summary>
+    public const string TextSection = "Text";
+
+    public bool IsEmpty => _edits.Count == 0 && _text.Count == 0;
+
+    /// <summary>Every change, stats and text.</summary>
+    public int Count => All.Count() + AllText.Count();
+
+    public IEnumerable<(string Table, int Record, string Field, string Value)> AllText =>
+        from table in _text
+        from record in table.Value
+        from field in record.Value
+        select (table.Key, record.Key, field.Key, field.Value);
+
+    public void SetText(string table, int record, string field, string value)
+    {
+        var text = Text.TextTables.ByName.TryGetValue(table, out var t) ? t : throw new FormatException($"Unknown text table \"{table}\"");
+        if (!text.Fields.Any(f => f.Name == field))
+            throw new FormatException($"{table}: unknown text field \"{field}\"");
+        if (record < 0)
+            throw new FormatException($"{table}: record {record} isn't valid");
+        if (value.Length > 2000)
+            throw new FormatException($"{table} 0x{record:X2} {field}: text is too long");
+        if (!_text.TryGetValue(table, out var records))
+            _text[table] = records = new SortedDictionary<int, Dictionary<string, string>>();
+        if (!records.TryGetValue(record, out var fields))
+            records[record] = fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        fields[field] = value;
+    }
+
+    public string? GetText(string table, int record, string field) =>
+        _text.TryGetValue(table, out var records) && records.TryGetValue(record, out var fields) && fields.TryGetValue(field, out var value)
+            ? value
+            : null;
+
+    public bool RemoveText(string table, int record, string field)
+    {
+        if (!_text.TryGetValue(table, out var records) || !records.TryGetValue(record, out var fields) || !fields.Remove(field))
+            return false;
+        if (fields.Count == 0)
+            records.Remove(record);
+        if (records.Count == 0)
+            _text.Remove(table);
+        return true;
+    }
 
     public IEnumerable<(string Table, int Record, string Field, string Value)> All =>
         from table in _edits
@@ -109,6 +156,23 @@ public sealed class TableEdits
                 }
                 json.WriteEndObject();
             }
+            if (_text.Count > 0)
+            {
+                json.WriteStartObject(TextSection);
+                foreach (var table in Text.TextTables.List.Where(t => _text.ContainsKey(t.Name)))
+                {
+                    json.WriteStartObject(table.Name);
+                    foreach (var (record, fields) in _text[table.Name])
+                    {
+                        json.WriteStartObject($"0x{record:X2}");
+                        foreach (var field in table.Fields.Where(f => fields.ContainsKey(f.Name)))
+                            json.WriteString(field.Name, fields[field.Name]);
+                        json.WriteEndObject();
+                    }
+                    json.WriteEndObject();
+                }
+                json.WriteEndObject();
+            }
             json.WriteEndObject();
         }
         return System.Text.Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
@@ -119,6 +183,8 @@ public sealed class TableEdits
     {
         foreach (var (table, record, field, value) in later.All)
             Set(table, record, field, value);
+        foreach (var (table, record, field, value) in later.AllText)
+            SetText(table, record, field, value);
     }
 
     /// <summary>The tables these edits change.</summary>
@@ -157,6 +223,11 @@ public sealed class TableEdits
         {
             if (table.Value.ValueKind != JsonValueKind.Object)
                 throw new FormatException($"\"{table.Name}\" must be an object of records");
+            if (table.Name == TextSection)
+            {
+                ParseText(table.Value, edits);
+                continue;
+            }
             foreach (var record in table.Value.EnumerateObject())
             {
                 var id = ParseId(record.Name) ?? throw new FormatException($"{table.Name}: \"{record.Name}\" isn't a record id (use e.g. \"0x4A\" or \"74\")");
@@ -173,6 +244,26 @@ public sealed class TableEdits
             }
         }
         return edits;
+    }
+
+    // "Text": { "ItemText": { "0xFD": { "Name": "Phoenix Up" } } }
+    private static void ParseText(JsonElement section, TableEdits edits)
+    {
+        foreach (var table in section.EnumerateObject())
+        {
+            if (table.Value.ValueKind != JsonValueKind.Object)
+                throw new FormatException($"{TextSection}.{table.Name} must be an object of records");
+            foreach (var record in table.Value.EnumerateObject())
+            {
+                var id = ParseId(record.Name) ?? throw new FormatException($"{table.Name}: \"{record.Name}\" isn't a record id");
+                foreach (var field in record.Value.EnumerateObject())
+                {
+                    if (field.Value.ValueKind != JsonValueKind.String)
+                        throw new FormatException($"{table.Name} {record.Name} {field.Name}: text must be a string");
+                    edits.SetText(table.Name, id, field.Name, field.Value.GetString()!);
+                }
+            }
+        }
     }
 
     private static int? ParseId(string text)

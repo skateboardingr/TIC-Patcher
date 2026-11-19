@@ -23,12 +23,12 @@ public sealed class ProcessMemory(IntPtr handle)
     /// with back-to-back regions joined into one block: a protection change
     /// splits a region, and a table must not be missed because it straddles the split.
     /// </summary>
-    public IEnumerable<(long Start, byte[] Bytes)> ContiguousBlocks(long from, long to)
+    public IEnumerable<(long Start, byte[] Bytes)> ContiguousBlocks(long from, long to, bool privateOnly = false)
     {
         long blockStart = -1;
         long blockEnd = -1;
         var parts = new List<byte[]>();
-        foreach (var (start, bytes) in ReadableRegions(from, to))
+        foreach (var (start, bytes) in ReadableRegions(from, to, privateOnly))
         {
             if (parts.Count > 0 && start != blockEnd)
             {
@@ -44,7 +44,8 @@ public sealed class ProcessMemory(IntPtr handle)
             yield return (blockStart, Join(parts));
     }
 
-    public IEnumerable<(long Start, byte[] Bytes)> ReadableRegions(long from, long to)
+    /// <param name="privateOnly">Only the process's own working memory (heap), skipping executables and mapped files.</param>
+    public IEnumerable<(long Start, byte[] Bytes)> ReadableRegions(long from, long to, bool privateOnly = false)
     {
         long address = from;
         while (address < to && Native.VirtualQueryEx(Handle, (IntPtr)address, out var info, (IntPtr)Marshal.SizeOf<Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero)
@@ -54,6 +55,10 @@ public sealed class ProcessMemory(IntPtr handle)
             address = regionStart + regionSize;
             if (info.State != Native.MEM_COMMIT || (info.Protect & Native.PAGE_GUARD) != 0 || (info.Protect & Native.READABLE) == 0)
                 continue;
+            if (privateOnly && info.Type != Native.MEM_PRIVATE)
+                continue;
+            if ((info.Protect & Native.UNCACHED) != 0)
+                continue; // GPU upload buffers and the like: very slow to read, and never game data
             if (regionSize > 1L << 30)
                 continue; // skip giant reservations
             var buffer = new byte[regionSize];
@@ -89,6 +94,26 @@ public sealed class ProcessMemory(IntPtr handle)
         {
             Native.VirtualProtectEx(Handle, target, size, oldProtect, out _);
         }
+    }
+
+    /// <summary>Allocates read-write memory wherever Windows chooses (0 if it can't).</summary>
+    public long Allocate(int size) =>
+        (long)Native.VirtualAllocEx(Handle, IntPtr.Zero, (IntPtr)size, Native.MEM_COMMIT | Native.MEM_RESERVE, Native.PAGE_READWRITE);
+
+    /// <summary>
+    /// Allocates read-write memory at or above <paramref name="minAddress"/> and
+    /// within <paramref name="within"/> bytes of it, or returns 0 if none is free there.
+    /// </summary>
+    public long Allocate(long minAddress, int size, long within = 0xF000_0000)
+    {
+        const long granularity = 0x10000;
+        for (var hint = (minAddress + granularity - 1) & ~(granularity - 1); hint < minAddress + within; hint += granularity)
+        {
+            var at = Native.VirtualAllocEx(Handle, (IntPtr)hint, (IntPtr)size, Native.MEM_COMMIT | Native.MEM_RESERVE, Native.PAGE_READWRITE);
+            if (at != IntPtr.Zero)
+                return (long)at;
+        }
+        return 0;
     }
 
     /// <summary>Writes only the runs of bytes that differ between <paramref name="before"/> and <paramref name="after"/>.</summary>
@@ -132,8 +157,12 @@ public sealed class ProcessMemory(IntPtr handle)
         public const uint PROCESS_VM_WRITE = 0x0020;
         public const uint PROCESS_VM_OPERATION = 0x0008;
         public const uint MEM_COMMIT = 0x1000;
+        public const uint MEM_RESERVE = 0x2000;
+        public const uint MEM_PRIVATE = 0x20000;
         public const uint PAGE_GUARD = 0x100;
         public const uint PAGE_READWRITE = 0x04;
+        // PAGE_NOCACHE | PAGE_WRITECOMBINE
+        public const uint UNCACHED = 0x200 | 0x400;
         // PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY
         public const uint READABLE = 0x02 | 0x04 | 0x08 | 0x20 | 0x40 | 0x80;
 
@@ -164,6 +193,9 @@ public sealed class ProcessMemory(IntPtr handle)
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool WriteProcessMemory(IntPtr process, IntPtr address, byte[] buffer, IntPtr size, out IntPtr written);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr VirtualAllocEx(IntPtr process, IntPtr address, IntPtr size, uint type, uint protect);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool VirtualProtectEx(IntPtr process, IntPtr address, IntPtr size, uint newProtect, out uint oldProtect);

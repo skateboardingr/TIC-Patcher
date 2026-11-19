@@ -141,6 +141,121 @@ if (args.Length >= 3 && args[0] == "--poke-text" && OperatingSystem.IsWindows())
     return 0;
 }
 
+// TICScan --memory-stats: the game's committed memory by type and protection (read-only).
+if (args.Length >= 1 && args[0] == "--memory-stats" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var stats = new Dictionary<string, (long Bytes, int Regions, long Largest)>();
+    long address = 0;
+    while (ProcessMemory.Native.VirtualQueryEx(handle, (IntPtr)address, out var info, (IntPtr)Marshal.SizeOf<ProcessMemory.Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero)
+    {
+        if (info.State == 0x1000)
+        {
+            var key = $"type 0x{info.Type:X5} protect 0x{info.Protect:X3}";
+            var (b, r, l) = stats.GetValueOrDefault(key);
+            stats[key] = (b + (long)info.RegionSize, r + 1, Math.Max(l, (long)info.RegionSize));
+        }
+        address = (long)info.BaseAddress + (long)info.RegionSize;
+    }
+    foreach (var (key, (bytes, regions, largest)) in stats.OrderByDescending(s => s.Value.Bytes))
+        Console.WriteLine($"{key}: {bytes / 1024 / 1024,6} MB in {regions,5} regions, largest {largest / 1024 / 1024} MB");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --pointers-to <hex address>[,<hex address>…] [span hex]: 8-byte values in the game's working
+// memory that point at (or into the first <span> bytes of) those addresses (read-only).
+if (args.Length >= 2 && args[0] == "--pointers-to" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var targets = args[1].Split(',').Select(t => Convert.ToInt64(t, 16)).ToArray();
+    var span = args.Length > 2 ? Convert.ToInt64(args[2], 16) : 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var module = game.MainModule!;
+    foreach (var (start, bytes) in memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF))
+        for (var i = 0; i + 8 <= bytes.Length; i += 8)
+        {
+            var value = BitConverter.ToInt64(bytes, i);
+            foreach (var target in targets)
+                if (value >= target && value < target + span)
+                {
+                    var where = start + i;
+                    var inExe = where >= (long)module.BaseAddress && where < (long)module.BaseAddress + module.ModuleMemorySize;
+                    Console.WriteLine($"0x{where:X}{(inExe ? " (in the exe)" : "")} -> 0x{value:X} (target 0x{target:X} +0x{value - target:X})");
+                }
+        }
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --regions <hex address> <hex length>: the memory regions from there on (read-only).
+if (args.Length >= 3 && args[0] == "--regions" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    long address = Convert.ToInt64(args[1], 16), end = address + Convert.ToInt64(args[2], 16);
+    var states = new Dictionary<uint, string> { [0x1000] = "committed", [0x2000] = "reserved", [0x10000] = "FREE" };
+    while (address < end && ProcessMemory.Native.VirtualQueryEx(handle, (IntPtr)address, out var info, (IntPtr)Marshal.SizeOf<ProcessMemory.Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero)
+    {
+        Console.WriteLine($"0x{(long)info.BaseAddress:X}  {(long)info.RegionSize / 1024,12} KB  {states.GetValueOrDefault(info.State, info.State.ToString("X"))}  type 0x{info.Type:X}  allocation base 0x{(long)info.AllocationBase:X}");
+        address = (long)info.BaseAddress + (long)info.RegionSize;
+    }
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --apply-text <tables.json>: apply a mod's text edits to the running game (temporary).
+if (args.Length >= 2 && args[0] == "--apply-text" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var edits = TICPatcher.Core.Mods.TableEdits.Parse(File.ReadAllText(args[1]));
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ
+        | ProcessMemory.Native.PROCESS_VM_WRITE | ProcessMemory.Native.PROCESS_VM_OPERATION, false, game.Id);
+    var done = TICPatcher.Core.Text.TextApplier.Relocate(new ProcessMemory(handle), edits, new TICPatcher.Core.Text.TextApplier.Done(), Console.WriteLine);
+    Console.WriteLine($"{done} text table(s) done");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --text-tables: the text tables TIC Loader would find in the running game, and
+// TICScan --game-text <FFT_enhanced.exe>: the original text read from the game's archives.
+if (args.Length >= 1 && args[0] == "--text-tables" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var watch = Stopwatch.StartNew();
+    foreach (var (start, bytes) in memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF))
+        foreach (var found in TICPatcher.Core.Text.TextPatcher.Find(bytes, start))
+        {
+            var table = TICPatcher.Core.Text.NxdTable.Parse(bytes[(int)(found.Address - start)..]);
+            var sample = found.Table.Name switch { "ItemText" => 0xFD, "JobText" => 0x4B, "AbilityText" => 0x01, _ => 0x1E };
+            Console.WriteLine($"{found.Table.Name} at 0x{found.Address:X}: {found.Rows.Count} rows; 0x{sample:X2} = \"{table.Text(found.Table, sample, found.Table.Fields[0])}\"");
+        }
+    Console.WriteLine($"scanned in {watch.ElapsedMilliseconds} ms");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+if (args.Length >= 2 && args[0] == "--game-text" && OperatingSystem.IsWindows())
+{
+    var text = TICPatcher.Core.Text.GameText.FromGame(args[1]);
+    foreach (var (table, rows) in text.Tables)
+        Console.WriteLine($"{table}: {rows.Count} rows, e.g. {string.Join(" | ", rows.Values.Skip(1).Take(3).Select(r => r.First().Value))}");
+    return 0;
+}
+
 // TICScan --peek <hex address> <length> [out file]: read-only look at the game's memory.
 if (args.Length >= 3 && args[0] == "--peek" && OperatingSystem.IsWindows())
 {

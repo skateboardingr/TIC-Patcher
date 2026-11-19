@@ -56,7 +56,7 @@ public sealed class ModCollector
             if (read() is not { IsEmpty: false } edits)
                 return;
             merged.Merge(edits);
-            log($"{id}: {edits.All.Count()} change(s) from {source}");
+            log($"{id}: {edits.Count} change(s) from {source}");
         }
         catch (Exception error) when (error is FormatException or IOException or System.Text.Json.JsonException)
         {
