@@ -83,6 +83,15 @@ public class TextTests
     }
 
     [Fact]
+    public void FindsSkillSetNames()
+    {
+        var bytes = BuildTable(TextTables.SkillSets, (id, field) => id == 5 && field == "Name" ? "Fundaments" : $"{field} {id}");
+        var found = Assert.Single(TextPatcher.Find(bytes, 0x10_0000_0000));
+        Assert.Equal("SkillSetText", found.Table.Name);
+        Assert.Equal("Fundaments", NxdTable.Parse(bytes).Text(TextTables.SkillSets, 5, TextTables.SkillSets.Field("Name")));
+    }
+
+    [Fact]
     public void ProjectTextFallsBackToTheGameAndDropsUnchangedEdits()
     {
         var game = new GameText

@@ -144,7 +144,9 @@ public sealed class MainWindow : Window
 
     private void ReadGameText(string exe)
     {
-        if ((_gameText ??= GameText.Load(GameText.CachePath("en"))) is not null || !OperatingSystem.IsWindows())
+        // A cache from an older TIC Patcher may lack tables mapped since; read it again then.
+        _gameText ??= GameText.Load(GameText.CachePath("en"));
+        if (_gameText is not null && TextTables.List.All(t => _gameText.Tables.ContainsKey(t.Name)) || !OperatingSystem.IsWindows())
             return;
         try
         {

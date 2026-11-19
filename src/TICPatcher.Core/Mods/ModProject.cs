@@ -41,6 +41,7 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
     private static readonly HashSet<string> TextSchemas =
     [
         Tables.Schemas.Items.Common.Name, Tables.Schemas.Items.Extra.Name, Tables.Schemas.Jobs.Schema.Name, Tables.Schemas.Abilities.Common.Name,
+        Tables.Schemas.SkillSets.Main.Name, Tables.Schemas.SkillSets.Extra.Name,
     ];
 
     /// <summary>The text fields shown with a stat table's records, if any.</summary>

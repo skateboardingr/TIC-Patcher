@@ -52,6 +52,7 @@ Text fields are u32 offsets into the string pool. Comparing the English and Fren
 | job.nxd | 174 | 64 | +4 name, +8 (second text), +12 description (row +4) |
 | ability.nxd | 512 | varies | +4 name, +8 description (row +4); +16, +20 change with language but aren't plain strings |
 | charaname.nxd | 1024 | 24 | +4 name (row +4) |
+| jobcommand.nxd | 227 | 36 | skill sets (row N = skill set N): +4 name, +8 description (row +4) |
 
 Not yet understood: how an item's effect line ("When attacking, has a chance of inflicting Blindness.") is reached.
 

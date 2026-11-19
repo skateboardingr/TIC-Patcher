@@ -52,7 +52,14 @@ public static class TextTables
         new("Name", 4),
     ], "Characters") { Rows = 1024, RowLength = 24 };
 
-    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters];
+    // Row N is skill set N (0x05 Fundaments, 0x0A White Magicks).
+    public static readonly TextTable SkillSets = new("SkillSetText", "jobcommand.nxd", 4,
+    [
+        new("Name", 4),
+        new("Description", 8),
+    ], Tables.Names.SkillSets) { Rows = 227, RowLength = 36 };
+
+    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters, SkillSets];
 
     public static readonly IReadOnlyDictionary<string, TextTable> ByName = List.ToDictionary(t => t.Name, StringComparer.Ordinal);
 
