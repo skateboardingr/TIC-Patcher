@@ -186,9 +186,60 @@ public sealed class TableEditor : UserControl
         if (FieldNotes.For(_schema.Name) is { } tableNote)
             _fields.Children.Add(new TextBlock { Text = tableNote, TextWrapping = TextWrapping.Wrap, Opacity = 0.7, Margin = new Thickness(0, 0, 0, 6) });
 
+        if (_project.TextTableFor(_schema) is { } textTable && id < textTable.Rows)
+            foreach (var field in textTable.Fields)
+                _fields.Children.Add(TextRow(id, textTable, field.Name));
         foreach (var field in _schema.Fields)
             _fields.Children.Add(FieldRow(id, field));
         _building = false;
+    }
+
+    // A name or description, changed in the game when the mod is played or injected.
+    private Control TextRow(int id, Core.Text.TextTable table, string field)
+    {
+        var changed = _project.IsTextChanged(table, id, field);
+        var label = new TextBlock
+        {
+            Text = Humanize(field),
+            Width = 170,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = changed ? FontWeight.Bold : FontWeight.Normal,
+        };
+        if (changed)
+            label.Foreground = ChangedBrush;
+        ToolTip.SetTip(label, $"Original: {_project.OriginalText(table, id, field)}\nIn mods (tables.json): Text / {table.Name} / {field}");
+        var multiline = field == "Description";
+        var box = new TextBox
+        {
+            Text = _project.CurrentText(table, id, field) ?? "",
+            AcceptsReturn = multiline,
+            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
+            MinHeight = multiline ? 60 : 0,
+            MinWidth = 260,
+            MaxWidth = 560,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        void Save()
+        {
+            var value = box.Text ?? "";
+            if (_building || value == (_project.CurrentText(table, id, field) ?? ""))
+                return;
+            _project.SetText(table, id, field, value);
+            _status($"{table.Name} 0x{id:X2} {field} = {value}");
+            RefreshLabel(id);
+            Avalonia.Threading.Dispatcher.UIThread.Post(ShowRecord);
+        }
+        box.LostFocus += (_, _) => Save();
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Enter && !multiline)
+                Save();
+        };
+        var row = new DockPanel();
+        DockPanel.SetDock(label, Dock.Left);
+        row.Children.Add(label);
+        row.Children.Add(box);
+        return row;
     }
 
     private Control FieldRow(int id, FieldDef field)

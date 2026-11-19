@@ -6,6 +6,7 @@ using Avalonia.Platform.Storage;
 using TICPatcher.Core.Mods;
 using TICPatcher.Core.Tables;
 using TICPatcher.Core.Tables.Schemas;
+using TICPatcher.Core.Text;
 
 namespace TICPatcher.App;
 
@@ -97,6 +98,9 @@ public sealed class MainWindow : Window
         Content = root;
 
         _modName.Text = "My TIC mod";
+        // Lists show the game's own names, with this mod's renames.
+        Names.Provider = (list, id) =>
+            _project is { GameText: not null } project && TextTables.ForNames(list) is { } text ? project.CurrentText(text, id, "Name") : null;
         var image = Array.IndexOf(args, "--from-image") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         if (image is not null)
             Load(VanillaData.FromImage(File.ReadAllBytes(image)), $"Read {image}");
@@ -124,6 +128,7 @@ public sealed class MainWindow : Window
         {
             var vanilla = VanillaData.FromExecutable(exe);
             vanilla.Save();
+            ReadGameText(exe);
             Load(vanilla, "Original values read from your installed game.", _project?.Edits);
             return true;
         }
@@ -131,6 +136,25 @@ public sealed class MainWindow : Window
         {
             Status($"Couldn't read {exe}: {error.Message}");
             return false;
+        }
+    }
+
+    // The game's names and descriptions, from the cache or else the game's archives.
+    private GameText? _gameText;
+
+    private void ReadGameText(string exe)
+    {
+        if ((_gameText ??= GameText.Load(GameText.CachePath("en"))) is not null || !OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            _gameText = GameText.FromGame(exe);
+            _gameText.Save();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or FormatException or InvalidOperationException
+            or System.Runtime.InteropServices.COMException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            Status($"Couldn't read the game's text (names and descriptions): {error.Message}");
         }
     }
 
@@ -164,7 +188,7 @@ public sealed class MainWindow : Window
 
     private void Load(VanillaData vanilla, string message, TableEdits? edits = null)
     {
-        _project = new ModProject(vanilla, edits);
+        _project = new ModProject(vanilla, edits) { GameText = _gameText ??= GameText.Load(GameText.CachePath("en")) };
         _project.Changed += UpdateTitle;
         _project.Changed += SaveSession;
         var tabs = new TabControl();

@@ -83,6 +83,26 @@ public class TextTests
     }
 
     [Fact]
+    public void ProjectTextFallsBackToTheGameAndDropsUnchangedEdits()
+    {
+        var game = new GameText
+        {
+            Language = "en",
+            Tables = new() { ["ItemText"] = new() { [0xFD] = new() { ["Name"] = "Phoenix Down" } } },
+        };
+        var project = new ModProject(new VanillaData { BuildName = "test", TimeDateStamp = 0, SizeOfImage = 0, Tables = [] }) { GameText = game };
+        Assert.Equal("Phoenix Down", project.CurrentText(TextTables.Items, 0xFD, "Name"));
+
+        project.SetText(TextTables.Items, 0xFD, "Name", "Phoenix Up");
+        Assert.True(project.IsTextChanged(TextTables.Items, 0xFD, "Name"));
+        Assert.Equal("Phoenix Up", project.CurrentText(TextTables.Items, 0xFD, "Name"));
+
+        project.SetText(TextTables.Items, 0xFD, "Name", "Phoenix Down");
+        Assert.False(project.IsTextChanged(TextTables.Items, 0xFD, "Name"));
+        Assert.True(project.Edits.IsEmpty);
+    }
+
+    [Fact]
     public void TextEditsRoundTripThroughTablesJson()
     {
         var edits = TableEdits.Parse("""

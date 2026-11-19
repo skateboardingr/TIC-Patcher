@@ -41,7 +41,21 @@ public static class Names
     /// </summary>
     public const int LastItem = 0x104;
 
+    /// <summary>
+    /// Names that take priority over FFTPatcher's lists, e.g. the game's own text
+    /// with a mod's renames (set by the editor). Empty or null falls back to the lists.
+    /// </summary>
+    public static Func<string, int, string?>? Provider { get; set; }
+
     public static string? Get(string list, int id)
+    {
+        if (Provider?.Invoke(list, id) is { Length: > 0 } name)
+            return name;
+        return Fallback(list, id);
+    }
+
+    /// <summary>FFTPatcher's (War of the Lions) name, ignoring <see cref="Provider"/>.</summary>
+    public static string? Fallback(string list, int id)
     {
         if (list == Items && id >= 0x100)
             return id <= LastItem ? Schemas.Items.ExtraNames.GetValueOrDefault(id) : null;

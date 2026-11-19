@@ -14,6 +14,38 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
 
     public event Action? Changed;
 
+    /// <summary>The game's own text (names, descriptions), if it could be read.</summary>
+    public Text.GameText? GameText { get; set; }
+
+    public string? OriginalText(Text.TextTable table, int id, string field) => GameText?.Get(table, id, field);
+
+    public string? CurrentText(Text.TextTable table, int id, string field) =>
+        Edits.GetText(table.Name, id, field) ?? OriginalText(table, id, field);
+
+    public bool IsTextChanged(Text.TextTable table, int id, string field) => Edits.GetText(table.Name, id, field) is not null;
+
+    /// <summary>Sets text; setting it back to the game's own drops the change.</summary>
+    public void SetText(Text.TextTable table, int id, string field, string value)
+    {
+        if (value == OriginalText(table, id, field))
+            Edits.RemoveText(table.Name, id, field);
+        else
+            Edits.SetText(table.Name, id, field, value);
+        Changed?.Invoke();
+    }
+
+    // The text table for a stat table's main records (items, jobs, abilities), if any.
+    private static Text.TextTable? TextFor(TableSchema schema) =>
+        TextSchemas.Contains(schema.Name) ? Text.TextTables.ForNames(schema.RecordNames) : null;
+
+    private static readonly HashSet<string> TextSchemas =
+    [
+        Tables.Schemas.Items.Common.Name, Tables.Schemas.Items.Extra.Name, Tables.Schemas.Jobs.Schema.Name, Tables.Schemas.Abilities.Common.Name,
+    ];
+
+    /// <summary>The text fields shown with a stat table's records, if any.</summary>
+    public Text.TextTable? TextTableFor(TableSchema schema) => GameText is null ? null : TextFor(schema);
+
     public bool HasTable(string table) => Vanilla.Tables.ContainsKey(table);
 
     public byte[] OriginalRecord(TableSchema schema, int id) =>
@@ -29,7 +61,9 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
 
     public bool IsChanged(TableSchema schema, int id, string field) => Edits.Get(schema.Name, id, field) is not null;
 
-    public bool IsChanged(TableSchema schema, int id) => Edits.All.Any(e => e.Table == schema.Name && e.Record == id);
+    public bool IsChanged(TableSchema schema, int id) =>
+        Edits.All.Any(e => e.Table == schema.Name && e.Record == id)
+        || (TextFor(schema) is { } text && Edits.AllText.Any(e => e.Table == text.Name && e.Record == id));
 
     /// <summary>Sets a field; throws FormatException for a value the field can't hold.</summary>
     public void Set(TableSchema schema, int id, string field, string value)
@@ -47,6 +81,9 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
         // All of the record's edits, including raw bytes ("+N") from imported mods.
         foreach (var (_, _, field, _) in Edits.All.Where(e => e.Table == schema.Name && e.Record == id).ToList())
             Edits.Remove(schema.Name, id, field);
+        if (TextFor(schema) is { } text)
+            foreach (var (_, _, field, _) in Edits.AllText.Where(e => e.Table == text.Name && e.Record == id).ToList())
+                Edits.RemoveText(text.Name, id, field);
         Changed?.Invoke();
     }
 
