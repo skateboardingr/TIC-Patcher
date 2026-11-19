@@ -60,6 +60,28 @@ public sealed class ModsView : UserControl
             _list.Children.Add(Row(reloaded, mod, enabled.Contains(mod.Id)));
     }
 
+    private async Task Delete(ReloadedSetup reloaded, ReloadedSetup.InstalledMod mod)
+    {
+        if (Process.GetProcessesByName("Reloaded-II").Length > 0)
+        {
+            _status("Close Reloaded-II's window first, so it doesn't undo the change.");
+            return;
+        }
+        if (TopLevel.GetTopLevel(this) is not Window owner || !await Confirm.Ask(owner, $"Delete \"{mod.Name}\"?",
+                $"It's turned off and its folder goes to the Recycle Bin:\n{mod.Folder}", "Delete"))
+            return;
+        try
+        {
+            reloaded.Delete(mod);
+            _status($"Deleted {mod.Name} (it's in the Recycle Bin).");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _status($"Couldn't delete {mod.Name}: {error.Message}");
+        }
+        Fill();
+    }
+
     private Control Row(ReloadedSetup reloaded, ReloadedSetup.InstalledMod mod, bool on)
     {
         var box = new CheckBox { IsChecked = on, VerticalAlignment = VerticalAlignment.Top };
@@ -89,14 +111,20 @@ public sealed class ModsView : UserControl
         var row = new DockPanel();
         DockPanel.SetDock(box, Dock.Left);
         row.Children.Add(box);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Top };
         if (mod.HasTables)
         {
-            var edit = new Button { Content = "Edit", VerticalAlignment = VerticalAlignment.Top };
+            var edit = new Button { Content = "Edit" };
             ToolTip.SetTip(edit, "Open this mod's table changes in the editor.");
             edit.Click += (_, _) => _edit(mod);
-            DockPanel.SetDock(edit, Dock.Right);
-            row.Children.Add(edit);
+            buttons.Children.Add(edit);
         }
+        var delete = new Button { Content = "Delete" };
+        ToolTip.SetTip(delete, "Turn this mod off and move its folder to the Recycle Bin.");
+        delete.Click += async (_, _) => await Delete(reloaded, mod);
+        buttons.Children.Add(delete);
+        DockPanel.SetDock(buttons, Dock.Right);
+        row.Children.Add(buttons);
         row.Children.Add(text);
         return new Border { Child = row, Padding = new Thickness(8), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), BorderBrush = Brushes.Gray };
     }

@@ -114,6 +114,24 @@ public sealed class ReloadedTests : IDisposable
     }
 
     [Fact]
+    public void DeletesModsButNotTicLoader()
+    {
+        var reloaded = Setup();
+        ModFolder(reloaded, "tic.mod.a", """{ "ModId": "tic.mod.a", "ModName": "A", "ModDependencies": ["tic.loader"] }""", tables: true);
+        reloaded.SetEnabled("tic.mod.a", true);
+        var mod = reloaded.GameMods().Single();
+
+        reloaded.Delete(mod);
+        Assert.Empty(reloaded.GameMods());
+        Assert.DoesNotContain("tic.mod.a", reloaded.EnabledMods());
+
+        var loader = mod with { Id = "tic.loader", Folder = Path.Combine(reloaded.ModsFolder, "tic.loader") };
+        Assert.Throws<InvalidOperationException>(() => reloaded.Delete(loader));
+        var outside = mod with { Folder = Path.Combine(_root, "Apps") };
+        Assert.Throws<InvalidOperationException>(() => reloaded.Delete(outside));
+    }
+
+    [Fact]
     public void InstallsAndUpdatesTicLoaderKeepingOtherFiles()
     {
         var reloaded = Setup();

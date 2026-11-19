@@ -60,7 +60,10 @@ public sealed class MainWindow : Window
         ToolTip.SetTip(export, "Save the changes as a tables.json file, e.g. to share.");
         export.Click += async (_, _) => await ExportMod();
         var play = new Button { Content = "▶ Play" };
-        ToolTip.SetTip(play, "Install this mod into Reloaded-II, turn it on, and start the game with it.");
+        ToolTip.SetTip(play, "Start the game with the mods ticked in the Mods tab. Doesn't save anything.");
+        var inject = new Button { Content = "Inject" };
+        ToolTip.SetTip(inject, "Put the editor's current values into the running game, to try them without saving. Temporary until the game closes.");
+        inject.Click += (_, _) => Inject();
         play.Click += (_, _) => Play();
         _modName.TextChanged += (_, _) =>
         {
@@ -80,6 +83,7 @@ public sealed class MainWindow : Window
         buttons.Children.Add(new TextBlock { Text = "Mod:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
         buttons.Children.Add(_modName);
         buttons.Children.Add(play);
+        buttons.Children.Add(inject);
         DockPanel.SetDock(buttons, Dock.Left);
         toolbar.Children.Add(buttons);
 
@@ -361,19 +365,18 @@ public sealed class MainWindow : Window
             Status("Couldn't install TIC Loader into Reloaded-II: " + error.Message);
             return;
         }
-        var name = ModName;
+        // Play just plays: the mods ticked in the Mods tab, nothing saved.
         try
         {
-            var id = InstallCurrent(reloaded);
-            if (!reloaded.Enable(id))
+            if (reloaded.GameAppConfig() is null)
             {
                 Status("Add the game to Reloaded-II first (Add an Application, pick FFT_enhanced.exe).");
                 return;
             }
             Process.Start(reloaded.LaunchCommand());
-            UpdateTitle();
-            Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with \"{name}\" ({_project.Edits.Count} change(s)).");
-            _mods?.Fill();
+            var mods = reloaded.EnabledMods().Count;
+            var unsaved = Unsaved ? " Unsaved changes in the editor aren't included: Save mod first, or use Inject once the game is running." : "";
+            Status($"{(loaderNews is null ? "" : loaderNews + " ")}Started the game with {mods} mod(s) ticked.{unsaved}");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -418,6 +421,44 @@ public sealed class MainWindow : Window
         _restoring = false;
         var count = edits.Count;
         Load(_project.Vanilla, count == 0 ? $"Ready: {session.ModName}." : $"Picked up where you left off: {session.ModName} ({count} change(s)).", edits);
+    }
+
+    // Whether the editor holds changes the mod's saved tables.json doesn't.
+    private bool Unsaved =>
+        _project is { } project && project.Edits.Count > 0
+        && !(_path is not null && File.Exists(_path) && File.ReadAllText(_path) == project.Edits.ToJson());
+
+    // Puts the editor's current values into the running game (temporary).
+    private void Inject()
+    {
+        if (_project is null)
+            return;
+        if (!OperatingSystem.IsWindows())
+        {
+            Status("Inject works on Windows for now.");
+            return;
+        }
+        var game = Process.GetProcessesByName("FFT_enhanced").FirstOrDefault();
+        if (game is null)
+        {
+            Status("Start the game first (Play), then Inject puts the editor's values into it.");
+            return;
+        }
+        Status("Injecting…");
+        var project = _project;
+        _ = Task.Run(() =>
+        {
+            string result;
+            try
+            {
+                result = LiveInjector.Inject(game, project, _ => { });
+            }
+            catch (Exception error) when (error is InvalidOperationException or NotSupportedException or IOException or System.ComponentModel.Win32Exception)
+            {
+                result = "Couldn't inject: " + error.Message;
+            }
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Status(result));
+        });
     }
 
     private string ModName => string.IsNullOrWhiteSpace(_modName.Text) ? "My TIC mod" : _modName.Text.Trim();

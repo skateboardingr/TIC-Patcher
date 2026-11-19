@@ -149,6 +149,25 @@ public sealed class ReloadedSetup
         return [.. mods.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)];
     }
 
+    /// <summary>
+    /// Removes a mod: turns it off for the game and moves its folder to the Recycle
+    /// Bin (deleted outright where there's none). Refuses TIC Loader itself.
+    /// </summary>
+    public void Delete(InstalledMod mod)
+    {
+        if (string.Equals(mod.Id, LoaderModId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("TIC Loader is managed by TIC Patcher.");
+        var folder = Path.GetFullPath(mod.Folder);
+        if (!folder.StartsWith(Path.GetFullPath(ModsFolder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"{folder} isn't in Reloaded-II's Mods folder.");
+        SetEnabled(mod.Id, false);
+        if (OperatingSystem.IsWindows())
+            Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(folder,
+                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+        else
+            Directory.Delete(folder, recursive: true);
+    }
+
     /// <summary>The installed TIC Loader's version, or null if it isn't installed.</summary>
     public Version? LoaderVersion()
     {
