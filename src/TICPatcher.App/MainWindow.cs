@@ -232,6 +232,9 @@ public sealed class MainWindow : Window
             }
             tabs.Items.Add(top);
         }
+        // Unit names have no stat table of their own.
+        if (_project.GameText?.Tables.ContainsKey(TextTables.Characters.Name) == true)
+            tabs.Items.Add(new TabItem { Header = "Characters", Content = new TextView(_project, TextTables.Characters, Status) });
         _tabs = tabs;
         tabs.SelectedIndex = 1; // straight to editing; Mods is one click away
         _body.Content = tabs;

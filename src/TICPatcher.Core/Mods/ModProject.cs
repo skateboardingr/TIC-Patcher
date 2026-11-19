@@ -34,6 +34,14 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
         Changed?.Invoke();
     }
 
+    /// <summary>Drops every text change to one row.</summary>
+    public void RevertText(Text.TextTable table, int id)
+    {
+        foreach (var (_, _, field, _) in Edits.AllText.Where(e => e.Table == table.Name && e.Record == id).ToList())
+            Edits.RemoveText(table.Name, id, field);
+        Changed?.Invoke();
+    }
+
     // The text table for a stat table's main records (items, jobs, abilities), if any.
     private static Text.TextTable? TextFor(TableSchema schema) =>
         TextSchemas.Contains(schema.Name) ? Text.TextTables.ForNames(schema.RecordNames) : null;
