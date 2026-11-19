@@ -22,6 +22,64 @@ using TICPatcher.Core.Tables.Schemas;
 if (args.Length >= 4 && args[0] == "--image")
     return ImageViewer.Show(args[1], args[2], args[3..]);
 
+// TICScan --gdeflate-test <dstorage folder>: does DirectStorage's codec work here?
+if (args.Length >= 2 && args[0] == "--gdeflate-test" && OperatingSystem.IsWindows())
+{
+    foreach (var threads in new uint[] { 0, 1, 4 })
+    {
+        try
+        {
+            using var codec = new TICPatcher.Core.Archives.GDeflate(args[1], threads);
+            var sample = System.Text.Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("The Ivalice Chronicles ", 5000)));
+            var packed = codec.Compress(sample);
+            var back = codec.Decompress(packed, sample.Length);
+            Console.WriteLine($"threads {threads}: ok, {sample.Length} -> {packed.Length} -> {back.Length}, same: {back.AsSpan().SequenceEqual(sample)}, starts {Convert.ToHexString(packed, 0, 8)}");
+        }
+        catch (Exception error)
+        {
+            Console.WriteLine($"threads {threads}: {error.GetType().Name} {error.Message} (0x{error.HResult:X8})");
+        }
+    }
+    return 0;
+}
+
+// TICScan --pac-list <archive.pac> [filter], and
+// TICScan --pac-extract <archive.pac> <file name> <out file>: research helpers for the
+// game's archives.
+if (args.Length >= 2 && (args[0] == "--pac-list" || args[0] == "--pac-extract"))
+{
+    var archive = TICPatcher.Core.Archives.PacArchive.Open(args[1]);
+    if (args[0] == "--pac-list")
+    {
+        Console.WriteLine($"{archive.Name}: {archive.Entries.Count} files");
+        foreach (var e in archive.Entries.Where(e => args.Length < 3 || e.Name.Contains(args[2], StringComparison.OrdinalIgnoreCase)))
+            Console.WriteLine($"  {e.Name,-60} {e.Size,10}  {(e.Block != 0 ? "in block" : e.Compressed ? "compressed" : "stored")}");
+        return 0;
+    }
+    if (!OperatingSystem.IsWindows() || args.Length < 4)
+        return 2;
+    // DirectStorage's CPU codec: the game's own DLLs (two folders up from data\enhanced), or a
+    // dstorage folder next to TICScan.
+    var gameFolder = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(args[1]))))!;
+    TICPatcher.Core.Archives.GDeflate codec;
+    try
+    {
+        codec = new TICPatcher.Core.Archives.GDeflate(gameFolder);
+        Console.WriteLine("using the game's DirectStorage");
+    }
+    catch (Exception error) when (error is NotImplementedException or DllNotFoundException or EntryPointNotFoundException)
+    {
+        codec = new TICPatcher.Core.Archives.GDeflate(Path.Combine(AppContext.BaseDirectory, "dstorage"));
+        Console.WriteLine("using TICScan's DirectStorage");
+    }
+    using var _ = codec;
+    var entry = archive.Find(args[2]) ?? throw new FileNotFoundException(args[2]);
+    var bytes = archive.Read(entry, codec);
+    File.WriteAllBytes(args[3], bytes);
+    Console.WriteLine($"{entry.Name}: {bytes.Length} bytes to {args[3]}");
+    return 0;
+}
+
 // TICScan --save-vanilla <FFT_enhanced.exe or memory image> <out.json>, and
 // TICScan --compare <a.json> <b.json>: research helpers for the original tables.
 if (args.Length >= 3 && args[0] == "--save-vanilla")
@@ -62,6 +120,51 @@ if (args.Length >= 2 && args[0] == "--exe")
         Console.WriteLine($"Can't read the tables from the file: {error.Message}");
         return 1;
     }
+}
+
+// TICScan --poke-text <hex address> <text>: overwrite text in the game's memory (temporary;
+// research only). The text is written as-is, without a terminator.
+if (args.Length >= 3 && args[0] == "--poke-text" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ
+        | ProcessMemory.Native.PROCESS_VM_WRITE | ProcessMemory.Native.PROCESS_VM_OPERATION, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var address = Convert.ToInt64(args[1], 16);
+    var text = System.Text.Encoding.UTF8.GetBytes(args[2]);
+    var before = System.Text.Encoding.UTF8.GetString(memory.Read(address, text.Length));
+    memory.Write(address, text);
+    Console.WriteLine($"0x{address:X}: \"{before}\" -> \"{args[2]}\"");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --peek <hex address> <length> [out file]: read-only look at the game's memory.
+if (args.Length >= 3 && args[0] == "--peek" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var bytes = new ProcessMemory(handle).Read(Convert.ToInt64(args[1], 16), int.Parse(args[2]));
+    ProcessMemory.Native.CloseHandle(handle);
+    if (args.Length > 3)
+        File.WriteAllBytes(args[3], bytes);
+    else
+        Console.WriteLine(Convert.ToHexString(bytes));
+    return 0;
+}
+
+// TICScan --find <text> [--nxd]: where the running game holds some text (read-only),
+// and with --nxd every NXDF table header with the first name in it.
+if (args.Length >= 2 && args[0] == "--find" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    return Finder.Run(game, System.Text.Encoding.UTF8.GetBytes(args[1].Replace("\\0", "\0")), args.Contains("--nxd"));
 }
 
 // TICScan --copies <table> [record id hex] [bytes]: finds copies of a table elsewhere
@@ -261,6 +364,50 @@ static class Copies
                 }
             }
             Console.WriteLine($"{found} place(s).");
+            return 0;
+        }
+        finally
+        {
+            ProcessMemory.Native.CloseHandle(handle);
+        }
+    }
+}
+
+[SupportedOSPlatform("windows")]
+static class Finder
+{
+    public static int Run(Process game, byte[] needle, bool nxd)
+    {
+        var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+        try
+        {
+            var memory = new ProcessMemory(handle);
+            var module = game.MainModule!;
+            long start = (long)module.BaseAddress, end = start + module.ModuleMemorySize;
+            var magic = "NXDF"u8.ToArray();
+            int hits = 0, tables = 0;
+            foreach (var (blockStart, bytes) in memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF))
+            {
+                var span = bytes.AsSpan();
+                for (int at = span.IndexOf(needle), from = 0; at >= 0; from = at + 1, at = span[from..].IndexOf(needle) is var n and >= 0 ? from + n : -1)
+                {
+                    var address = blockStart + at;
+                    Console.WriteLine($"text at 0x{address:X}{(address >= start && address < end ? " (in the exe)" : "")}");
+                    hits++;
+                }
+                if (!nxd)
+                    continue;
+                for (int at = span.IndexOf(magic), from = 0; at >= 0; from = at + 1, at = span[from..].IndexOf(magic) is var n and >= 0 ? from + n : -1)
+                {
+                    if (at + 0x40 > span.Length || BitConverter.ToUInt32(span[(at + 0x20)..]) != 0x30)
+                        continue;
+                    var count = BitConverter.ToUInt32(span[(at + 0x24)..]);
+                    tables++;
+                    if (tables <= 80)
+                        Console.WriteLine($"NXDF at 0x{blockStart + at:X}: {count} rows");
+                }
+            }
+            Console.WriteLine($"{hits} text hit(s), {tables} NXDF table(s)");
             return 0;
         }
         finally

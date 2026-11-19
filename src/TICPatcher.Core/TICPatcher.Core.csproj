@@ -3,6 +3,7 @@
        running game, mods' edits, and finding tables in memory. No UI. -->
   <PropertyGroup>
     <RootNamespace>TICPatcher.Core</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../TICLoader.Interfaces/TICLoader.Interfaces.csproj" />
