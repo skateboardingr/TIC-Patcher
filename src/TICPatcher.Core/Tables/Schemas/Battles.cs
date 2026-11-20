@@ -20,6 +20,11 @@ public static class Battles
     public static readonly IReadOnlyList<string> Files =
         ["battle_entd1_ent.bin", "battle_entd2_ent.bin", "battle_entd3_ent.bin", "battle_entd4_ent.bin"];
 
+    // Special values, as FFTPatcher has them (Datatypes/Items/Item.cs, Abilities/AllAbilities.cs, Job/SkillSet.cs).
+    private static readonly Dictionary<int, string> ItemSpecials = new() { [0xFE] = "<Random>", [0xFF] = "<None>" };
+    private static readonly Dictionary<int, string> AbilitySpecials = new() { [0x1FE] = "<Random>", [0x1FF] = "<None>" };
+    private static readonly Dictionary<int, string> SkillSetSpecials = new() { [0xFE] = "<Random>", [0xFF] = "<Job's own>" };
+
     public static readonly TableSchema Units = new(
         "Battles",
         RecordSize: 40,
@@ -37,15 +42,15 @@ public static class Battles
             FieldDef.U8("PrerequisiteJob", 8) with { NameList = Names.PrerequisiteJobs },
             FieldDef.U8("PrerequisiteJobLevel", 9),
             FieldDef.U8("Job", 10) with { NameList = Names.Jobs, LinksTo = "Jobs" },
-            FieldDef.U8("SecondaryAction", 11) with { NameList = Names.SkillSets, LinksTo = "SkillSets" },
-            FieldDef.U16("Reaction", 12) with { NameList = Names.Abilities, LinksTo = "Abilities" },
-            FieldDef.U16("Support", 14) with { NameList = Names.Abilities, LinksTo = "Abilities" },
-            FieldDef.U16("Movement", 16) with { NameList = Names.Abilities, LinksTo = "Abilities" },
-            FieldDef.U8("Head", 18) with { NameList = Names.Items, LinksTo = "Items" },
-            FieldDef.U8("Body", 19) with { NameList = Names.Items, LinksTo = "Items" },
-            FieldDef.U8("Accessory", 20) with { NameList = Names.Items, LinksTo = "Items" },
-            FieldDef.U8("RightHand", 21) with { NameList = Names.Items, LinksTo = "Items" },
-            FieldDef.U8("LeftHand", 22) with { NameList = Names.Items, LinksTo = "Items" },
+            FieldDef.U8("SecondaryAction", 11) with { NameList = Names.SkillSets, LinksTo = "SkillSets", Specials = SkillSetSpecials },
+            FieldDef.U16("Reaction", 12) with { NameList = Names.Abilities, LinksTo = "Abilities", Specials = AbilitySpecials },
+            FieldDef.U16("Support", 14) with { NameList = Names.Abilities, LinksTo = "Abilities", Specials = AbilitySpecials },
+            FieldDef.U16("Movement", 16) with { NameList = Names.Abilities, LinksTo = "Abilities", Specials = AbilitySpecials },
+            FieldDef.U8("Head", 18) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
+            FieldDef.U8("Body", 19) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
+            FieldDef.U8("Accessory", 20) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
+            FieldDef.U8("RightHand", 21) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
+            FieldDef.U8("LeftHand", 22) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
             FieldDef.U8("Palette", 23),
             FieldDef.Flags("Flags2", 24, ["AlwaysPresent", "RandomlyPresent", null, null, "Control", "Immortal", "Blank6", "Blank7"]),
             FieldDef.Bits("TeamColor", 24, 0x30) with { NameList = Names.TeamColors },
@@ -54,8 +59,8 @@ public static class Battles
             FieldDef.Bits("FacingDirection", 27, 0x7F) with { NameList = Names.Facing },
             FieldDef.Flags("Elevation", 27, ["UpperLevel"]),
             FieldDef.U8("Experience", 28),
-            FieldDef.U8("SkillSet", 29) with { NameList = Names.SkillSets, LinksTo = "SkillSets" },
-            FieldDef.U8("WarTrophy", 30) with { NameList = Names.Items, LinksTo = "Items" },
+            FieldDef.U8("SkillSet", 29) with { NameList = Names.SkillSets, LinksTo = "SkillSets", Specials = SkillSetSpecials },
+            FieldDef.U8("WarTrophy", 30) with { NameList = Names.Items, LinksTo = "Items", Specials = ItemSpecials },
             FieldDef.U8("BonusMoney", 31),
             FieldDef.U8("UnitID", 32),
             FieldDef.U8("TargetX", 33),

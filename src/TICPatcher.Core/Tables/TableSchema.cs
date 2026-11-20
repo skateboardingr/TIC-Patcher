@@ -40,6 +40,9 @@ public sealed record FieldDef(string Name, int Offset, FieldKind Kind, int Size 
     /// <summary>The table whose record this field's value selects (e.g. an item's attributes entry), for jumping to it.</summary>
     public string? LinksTo { get; init; }
 
+    /// <summary>Values that mean something special in this field instead of their name-list entry (e.g. 0xFE "random item" in a battle).</summary>
+    public IReadOnlyDictionary<int, string>? Specials { get; init; }
+
     /// <summary>
     /// The field means something else when another field of the record has a
     /// given value, e.g. a weapon's InflictStatus is the spell it casts when its

@@ -402,7 +402,8 @@ public sealed class TableEditor : UserControl
             var max = Math.Min(Limit(field), 0x1FF);
             if (list == Names.InflictStatuses)
                 max = Statuses.Inflict.RecordCount - 1;
-            var items = Enumerable.Range(0, max + 1).Select(i => max > 0xFF ? $"{i:X3}  {NameIn(list, i) ?? ""}" : $"{i:X2}  {NameIn(list, i) ?? ""}").ToList();
+            string? Name(int i) => field.Specials?.GetValueOrDefault(i) ?? NameIn(list, i);
+            var items = Enumerable.Range(0, max + 1).Select(i => max > 0xFF ? $"{i:X3}  {Name(i) ?? ""}" : $"{i:X2}  {Name(i) ?? ""}").ToList();
             var value = int.Parse(current);
             if (value <= max)
             {
