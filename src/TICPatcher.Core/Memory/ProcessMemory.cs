@@ -54,12 +54,15 @@ public sealed class ProcessMemory(IntPtr handle)
 
     public IEnumerable<(long Start, byte[] Bytes)> ContiguousBlocks(long from, long to, bool privateOnly = false)
     {
+        // Joined runs are capped: inside the game, adjacent regions can add up to more
+        // than an array holds. (Something straddling a cut is missed, which is rare.)
+        const long MaxJoined = 256L << 20;
         long blockStart = -1;
         long blockEnd = -1;
         var parts = new List<byte[]>();
         foreach (var (start, bytes) in ReadableRegions(from, to, privateOnly))
         {
-            if (parts.Count > 0 && start != blockEnd)
+            if (parts.Count > 0 && (start != blockEnd || blockEnd - blockStart + bytes.Length > MaxJoined))
             {
                 yield return (blockStart, Join(parts));
                 parts.Clear();

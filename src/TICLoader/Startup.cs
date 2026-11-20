@@ -169,6 +169,8 @@ public class Startup : IMod
             var wanted = BattleMemory.Wanted(original, edits);
             Log($"Battles: {edits.All.Count(e => e.Table == Battles.Units.Name)} field(s) to apply; looking for the game's battles");
             var told = false;
+            var crashed = false;
+            var lastReason = "";
             var waited = Stopwatch.StartNew();
             long? at = null;
             while (true)
@@ -179,11 +181,24 @@ public class Startup : IMod
                     continue;
                 }
                 var attempt = Stopwatch.StartNew();
-                at = BattleMemory.Find(memory, original, insideGame: true, why: told ? null : reason =>
+                try
                 {
-                    Log($"Battles: not found yet ({reason})");
-                    told = true;
-                });
+                    at = BattleMemory.Find(memory, original, insideGame: true, why: reason =>
+                    {
+                        lastReason = reason;
+                        if (!told)
+                            Log($"Battles: not found yet ({reason})");
+                        told = true;
+                    });
+                }
+                catch (Exception error)
+                {
+                    // One search failing (memory changing under it) isn't the end: try again.
+                    at = null;
+                    if (!crashed)
+                        Log($"Battles: a search failed, trying again: {error.GetType().Name}: {error.Message}");
+                    crashed = true;
+                }
                 if (at is { } found)
                 {
                     var bytes = BattleMemory.Apply(memory, found, wanted);
@@ -192,7 +207,7 @@ public class Startup : IMod
                 }
                 else if (waited.Elapsed > TimeSpan.FromMinutes(3))
                 {
-                    Log("Battles: the game's battles weren't found; battles are unchanged. Still looking every 30 s.");
+                    Log($"Battles: the game's battles weren't found ({lastReason}); battles are unchanged. Still looking every 30 s.");
                     Thread.Sleep(30000);
                     waited.Restart();
                 }
