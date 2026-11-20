@@ -14,7 +14,8 @@ AppBuilder.Configure<App>()
     .WithInterFont()
     .SetupWithoutStarting();
 
-var window = new MainWindow(["--from-image", args[0]]) { Width = 1200, Height = 1000 };
+// A saved vanilla .json (which can include the battles) works too.
+var window = new MainWindow([args[0].EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "--from-vanilla" : "--from-image", args[0]]) { Width = 1200, Height = 1000 };
 window.Show();
 Directory.CreateDirectory(args[1]);
 var shotNumber = 0;

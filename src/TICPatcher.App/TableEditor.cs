@@ -76,8 +76,10 @@ public sealed class TableEditor : UserControl
 
     private string Label(int id)
     {
-        var name = _schema.Name == Items.Attributes.Name ? AttributeUsers(id) : _schema.NameOf(id);
+        var name = Describe?.Invoke(id) ?? (_schema.Name == Items.Attributes.Name ? AttributeUsers(id) : _schema.NameOf(id));
         var mark = _project.IsChanged(_schema, id) ? " •" : "";
+        if (Describe is not null && name is not null)
+            return $"{name}{mark}"; // described records name themselves (e.g. "Unit 3: …")
         var hex = _schema.FirstId + _schema.RecordCount > 0x100 ? $"{id:X3}" : $"{id:X2}";
         return name is null ? $"{hex}{mark}" : $"{hex}  {name}{mark}";
     }
@@ -87,12 +89,27 @@ public sealed class TableEditor : UserControl
         var selected = SelectedId;
         var filter = _filter.Text?.Trim() ?? "";
         _shown.Clear();
-        _shown.AddRange(Enumerable.Range(_schema.FirstId, _schema.RecordCount)
+        _shown.AddRange(Enumerable.Range(_range?.First ?? _schema.FirstId, _range?.Count ?? _schema.RecordCount)
             .Where(id => filter.Length == 0 || Label(id).Contains(filter, StringComparison.OrdinalIgnoreCase))
             .Where(id => _changedOnly.IsChecked != true || _project.IsChanged(_schema, id)));
         _records.ItemsSource = _shown.Select(Label).ToList();
         if (selected is { } id && _shown.IndexOf(id) is >= 0 and var index)
             _records.SelectedIndex = index;
+    }
+
+    /// <summary>Names records from their current values instead (e.g. a battle unit by its sprite and job).</summary>
+    public Func<int, string?>? Describe { get; init; }
+
+    // Only these records, e.g. one battle's 16 units (null: the whole table).
+    private (int First, int Count)? _range;
+
+    /// <summary>Lists only records <paramref name="first"/> to <paramref name="first"/> + <paramref name="count"/> - 1.</summary>
+    public void ShowRange(int first, int count)
+    {
+        _range = (first, count);
+        FillRecords();
+        if (_records.SelectedIndex < 0 && _shown.Count > 0)
+            _records.SelectedIndex = 0;
     }
 
     /// <summary>Shows a record, clearing any filter that would hide it.</summary>
@@ -277,7 +294,8 @@ public sealed class TableEditor : UserControl
     private List<(TableSchema Table, int Record, string Text)> UsersOf(int id)
     {
         var users = new List<(TableSchema, int, string)>();
-        foreach (var table in AllTables.List.Where(t => _project.HasTable(t.Name)))
+        // Not battle units: hundreds of them use the common jobs and items.
+        foreach (var table in AllTables.List.Where(t => _project.HasTable(t.Name) && t != Battles.Units))
         {
             var links = table.Fields.Where(f => f.LinksTo is not null || f.When is not null).ToList();
             if (links.Count == 0)

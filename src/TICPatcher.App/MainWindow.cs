@@ -105,8 +105,11 @@ public sealed class MainWindow : Window
         Names.Provider = (list, id) =>
             _project is { GameText: not null } project && TextTables.ForNames(list) is { } text ? project.CurrentText(text, id, "Name") : null;
         var image = Array.IndexOf(args, "--from-image") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        var vanillaFile = Array.IndexOf(args, "--from-vanilla") is var v and >= 0 && v + 1 < args.Length ? args[v + 1] : null;
         if (image is not null)
             Load(VanillaData.FromImage(File.ReadAllBytes(image)), $"Read {image}");
+        else if (vanillaFile is not null)
+            Load(VanillaData.Load(vanillaFile), $"Read {vanillaFile}");
         else
         {
             if (!TryLoadExecutable(GameLocator.Find()))
@@ -130,6 +133,18 @@ public sealed class MainWindow : Window
         try
         {
             var vanilla = VanillaData.FromExecutable(exe);
+            if (OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    vanilla.AddBattles(exe);
+                }
+                catch (Exception error) when (error is IOException or FormatException or InvalidOperationException
+                    or System.Runtime.InteropServices.COMException or DllNotFoundException or EntryPointNotFoundException)
+                {
+                    Status($"Couldn't read the battles: {error.Message}");
+                }
+            }
             vanilla.Save();
             ReadGameText(exe);
             Load(vanilla, "Original values read from your installed game.", _project?.Edits);
@@ -234,6 +249,14 @@ public sealed class MainWindow : Window
                     _places[available[i].Name] = (top, sub, i, editors[i]);
             }
             tabs.Items.Add(top);
+        }
+        // Battles: pick a battle, then edit its units.
+        if (_project.HasTable(Battles.Units.Name))
+        {
+            var battles = new BattleView(_project, Status, Navigate);
+            var top = new TabItem { Header = "Battles", Content = battles };
+            tabs.Items.Add(top);
+            _places[Battles.Units.Name] = (top, null, 0, battles.Units);
         }
         // Unit names have no stat table of their own.
         if (_project.GameText?.Tables.ContainsKey(TextTables.Characters.Name) == true)

@@ -28,7 +28,7 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Errands (Propositions) | ◐ | the 96 errands ✓; the bonus and price tables after them still to add |
 | Poaching | ✗ | not in the executable: data-file stage |
 | Move-Find Items | ✗ | not in the executable: data-file stage |
-| ENTD (battles and their units) | ✗ | not in the executable: data-file stage |
+| ENTD (battles and their units) | ◐ | editing ✓ (Battles tab; TIC's battle files in data\enhanced\0002.pac are the PSX ENTD1-4 byte for byte); applying in game still to come |
 
 ## Editor features
 
@@ -66,4 +66,5 @@ Features FFTPatcher never had, planned for after parity. The hard ones need TIC 
 - **More equip slots:** change how many action, reaction, support and movement abilities a unit can have. This is code plus the unit and save formats, so it needs care with saves. (Today, a job's four innate abilities already give always-on extras.)
 - **New ability and item behaviours** stored in bytes the game never reads (status attributes' Blank1 and Blank2) or in the remaster's still-unknown ability bytes, with TIC Loader adding the behaviour in code. Examples: costs HP instead of MP, inflicts a second status.
 - **Sprite editing, and adding sprites to the roster:** TIC Patcher's answer to FFTPatcher's sprite tools (ShishiSpriteEditor). The character textures live in the game's `.pac` archives (see docs/archives.md).
+- **More sprites in a battle:** raise the limit on how many different unit sprites one battle can load, and perhaps on units per battle. This is a code change in TIC Loader, and goes with the Battles editor and adding sprites to the roster.
 - **Play button and mod manager:** install, enable and launch from the editor, so Reloaded-II's own window is rarely needed.

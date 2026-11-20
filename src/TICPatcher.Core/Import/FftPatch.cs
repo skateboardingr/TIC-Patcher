@@ -106,8 +106,9 @@ public sealed class FftPatch
 
     /// <summary>Where a TIC table's records sit in a patch element.</summary>
     /// <param name="Psx">How the PSX game differs: its record size and count, or null if the PSP layout is used for both.</param>
+    /// <param name="First">The first record's id, if not the table's first (e.g. ENTD2 starts at battle 0x80).</param>
     private sealed record Part(string Element, string DefaultFile, TableSchema Table, int Offset, int RecordSize, int Count,
-        (int RecordSize, int Count)? Psx = null, bool PspOnly = false);
+        (int RecordSize, int Count)? Psx = null, bool PspOnly = false, int? First = null);
 
     private static readonly Part[] Parts =
     [
@@ -135,10 +136,15 @@ public sealed class FftPatch
         new("inflictStatuses", "InflictStatuses.bin", Statuses.Inflict, 0, 6, 0x80),
         new("storeInventories", "StoreInventories.bin", Items.ShopInventories, 0, 2, 256),
         new("propositions", "Propositions.bin", Errands.Schema, 0, 23, 96),
+        // Battles: TIC's battle files are FFTPatcher's ENTD1-4 byte for byte.
+        new("entd1", "ENTD1.ENT", Battles.Units, 0, 40, 2048, First: 0),
+        new("entd2", "ENTD2.ENT", Battles.Units, 0, 40, 2048, First: 2048),
+        new("entd3", "ENTD3.ENT", Battles.Units, 0, 40, 2048, First: 4096),
+        new("entd4", "ENTD4.ENT", Battles.Units, 0, 40, 2048, First: 6144),
     ];
 
     // Shared by both games in FFTPatcher's defaults; the rest are under PSP/bin or PSX-US/bin.
-    private static readonly HashSet<string> SharedDefaults = ["StoreInventories.bin", "Propositions.bin"];
+    private static readonly HashSet<string> SharedDefaults = ["StoreInventories.bin", "Propositions.bin", "ENTD1.ENT", "ENTD2.ENT", "ENTD3.ENT", "ENTD4.ENT"];
 
     /// <summary>Patch contents TIC Patcher can't import (yet): element → (FFTPatcher's default file, why).
     /// "{bin}" is PSP/bin/ or PSX-US/bin/.</summary>
@@ -148,11 +154,7 @@ public sealed class FftPatch
         ["pspItemAttributes"] = ("PSP/bin/NewItemAttributes.bin", "War of the Lions' extra item attributes"),
         ["poaching"] = ("{bin}PoachProbabilities.bin", "poaching (not in TIC's executable)"),
         ["moveFindItems"] = ("MoveFind.bin", "move-find items (not in TIC's executable)"),
-        ["entd1"] = ("ENTD1.ENT", "battles (ENTD)"),
-        ["entd2"] = ("ENTD2.ENT", "battles (ENTD)"),
-        ["entd3"] = ("ENTD3.ENT", "battles (ENTD)"),
-        ["entd4"] = ("ENTD4.ENT", "battles (ENTD)"),
-        ["entd5"] = ("PSP/bin/ENTD5.bin", "battles (ENTD)"),
+        ["entd5"] = ("PSP/bin/ENTD5.bin", "War of the Lions' extra battles (ENTD5)"),
         ["jobFormationSprites1"] = ("JobFormationSprites1.bin", "job formation sprites"),
         ["jobFormationSprites2"] = ("JobFormationSprites2.bin", "job formation sprites"),
     };
@@ -186,7 +188,7 @@ public sealed class FftPatch
                     continue;
                 // PSX jobs gain PSP's fifth equipment byte when widened.
                 var length = !Psp && part.Table == Jobs.Schema ? size + 1 : size;
-                ImportRecord(project, part.Table, part.Table.FirstId + i, Widen(part, mine), Widen(part, theirs), length, report);
+                ImportRecord(project, part.Table, (part.First ?? part.Table.FirstId) + i, Widen(part, mine), Widen(part, theirs), length, report);
             }
         }
         // Changed (or with no default to compare with): worth telling the user it wasn't imported.
@@ -214,7 +216,7 @@ public sealed class FftPatch
             {
                 total++;
                 if (original.AsSpan(part.Offset + i * part.RecordSize, part.RecordSize)
-                    .SequenceEqual(tic.AsSpan(i * part.Table.RecordSize, part.RecordSize)))
+                    .SequenceEqual(tic.AsSpan(((part.First ?? part.Table.FirstId) - part.Table.FirstId + i) * part.Table.RecordSize, part.RecordSize)))
                     same++;
             }
             yield return (part.Table.Name, same, total);

@@ -51,6 +51,24 @@ public sealed class VanillaData
     }
 
     /// <summary>
+    /// Adds the battles (ENTD), which aren't in the executable: read from the
+    /// installed game's data\enhanced\0002.pac (read-only).
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public void AddBattles(string gameExe)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(gameExe))!;
+        var archive = Archives.PacArchive.Open(Path.Combine(folder, "data", "enhanced", "0002.pac"));
+        using var codec = new Archives.GDeflate(folder);
+        var bytes = new List<byte>(Battles.Units.Length);
+        foreach (var file in Battles.Files)
+            bytes.AddRange(archive.Read(archive.Find(file) ?? throw new FormatException($"{file} isn't in 0002.pac"), codec));
+        if (bytes.Count != Battles.Units.Length)
+            throw new FormatException($"The battle files hold {bytes.Count} bytes, expected {Battles.Units.Length}.");
+        Tables[Battles.Units.Name] = [.. bytes];
+    }
+
+    /// <summary>
     /// Copies the tables out of an image of the game's module (its memory
     /// from the module start, as TICScan --dump writes it).
     /// </summary>

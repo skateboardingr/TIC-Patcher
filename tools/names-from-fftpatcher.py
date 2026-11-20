@@ -22,6 +22,10 @@ XML_LISTS = {
     "Formulas": ("AbilityFormulas.xml", "Ability", "value", 16, None),
     "ShopAvailability": ("PSP/Items/Strings.xml", "ShopAvailabilities/string", "value", 10, "name"),
     "Errands": ("PSP/Errands.xml", "entry", "value", 10, "name"),
+    # Battles (ENTD): TIC's battle files are the PSX game's, so its names.
+    "Battles": ("PSX-US/EventNames.xml", "Event", "value", 16, "name"),
+    "SpriteSets": ("PSX-US/SpriteSets.xml", "Sprite", "byte", 16, "name"),
+    "SpecialNames": ("PSX-US/SpecialNames.xml", "SpecialName", "byte", 16, "name"),
 }
 
 # name: (C# file, enum name). Members count up from 0; [PSPDescription] or [Description] gives the display name.
@@ -35,6 +39,10 @@ ENUM_LISTS = {
     "ErrandPrereqs": ("Datatypes/Propositions/Proposition.cs", "PrereqType"),
     "ErrandClasses": ("Datatypes/Propositions/AllPropositions.cs", "RandomSuccessClass"),
     "Towns": ("PatcherLib/Datatypes/Shops.cs", "Town"),
+    "Months": ("Datatypes/ENTD/Months.cs", "Month"),
+    "PrerequisiteJobs": ("Datatypes/ENTD/EventUnit.cs", "PreRequisiteJob"),
+    "Facing": ("Datatypes/ENTD/EventUnit.cs", "Facing"),
+    "TeamColors": ("Datatypes/ENTD/EventUnit.cs", "TeamColor"),
 }
 
 

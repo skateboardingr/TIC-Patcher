@@ -28,6 +28,13 @@ public static class Names
     public const string ErrandPrereqs = "ErrandPrereqs";
     public const string ErrandClasses = "ErrandClasses";
     public const string Towns = "Towns";
+    public const string Battles = "Battles";
+    public const string SpriteSets = "SpriteSets";
+    public const string SpecialNames = "SpecialNames";
+    public const string Months = "Months";
+    public const string PrerequisiteJobs = "PrerequisiteJobs";
+    public const string Facing = "Facing";
+    public const string TeamColors = "TeamColors";
 
     /// <summary>Not a fixed list: the editor names each entry from the mod's current InflictStatuses table.</summary>
     public const string InflictStatuses = "InflictStatuses";
