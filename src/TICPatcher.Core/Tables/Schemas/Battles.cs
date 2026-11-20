@@ -25,6 +25,16 @@ public static class Battles
     private static readonly Dictionary<int, string> AbilitySpecials = new() { [0x1FE] = "<Random>", [0x1FF] = "<None>" };
     private static readonly Dictionary<int, string> SkillSetSpecials = new() { [0xFE] = "<Random>", [0xFF] = "<Job's own>" };
 
+    // What a unit's level byte means (FFTPatcher Editors/ENTD/EventUnitEditor.cs, levelStrings).
+    private static readonly Dictionary<int, string> Levels = Enumerable.Range(0, 256).ToDictionary(v => v, v => v switch
+    {
+        >= 1 and <= 99 => $"Level {v}",
+        100 => "Party level",
+        > 100 and < 200 => $"Party level + {v - 100}",
+        0 or 254 => "Party level - random",
+        _ => "",
+    });
+
     public static readonly TableSchema Units = new(
         "Battles",
         RecordSize: 40,
@@ -34,7 +44,7 @@ public static class Battles
             FieldDef.U8("SpriteSet", 0) with { NameList = Names.SpriteSets },
             FieldDef.Flags("Flags1", 1, ["Male", "Female", "Monster", "JoinAfterEvent", "LoadFormation", "ZodiacMonster", "Blank2", "SaveFormation"]),
             FieldDef.U8("SpecialName", 2) with { NameList = Names.SpecialNames, Specials = new Dictionary<int, string> { [0xFF] = "<Random>" } },
-            FieldDef.U8("Level", 3),
+            FieldDef.U8("Level", 3) with { NameList = "BattleLevels", Specials = Levels },
             FieldDef.U8("Month", 4) with { NameList = Names.Months },
             FieldDef.U8("Day", 5),
             FieldDef.U8("Bravery", 6),
