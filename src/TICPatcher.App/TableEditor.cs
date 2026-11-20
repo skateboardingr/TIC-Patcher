@@ -100,6 +100,9 @@ public sealed class TableEditor : UserControl
     /// <summary>Names records from their current values instead (e.g. a battle unit by its sprite and job).</summary>
     public Func<int, string?>? Describe { get; init; }
 
+    /// <summary>Extra buttons beside Copy and Paste that set several fields at once (e.g. a battle unit's gear to random).</summary>
+    public IReadOnlyList<(string Label, string Tip, IReadOnlyList<(string Field, string Value)> Values)> Actions { get; init; } = [];
+
     // Only these records, e.g. one battle's 16 units (null: the whole table).
     private (int First, int Count)? _range;
 
@@ -164,6 +167,20 @@ public sealed class TableEditor : UserControl
         var paste = new Button { Content = "Paste", IsEnabled = _clipboard?.Table == _schema.Name };
         paste.Click += (_, _) => Paste(id);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        foreach (var action in Actions)
+        {
+            var button = new Button { Content = action.Label };
+            ToolTip.SetTip(button, action.Tip);
+            button.Click += (_, _) =>
+            {
+                foreach (var (field, value) in action.Values)
+                    _project.Set(_schema, id, field, value);
+                _status($"{Label(id).Replace(" •", "")}: {action.Label}");
+                RefreshLabel(id);
+                ShowRecord();
+            };
+            buttons.Children.Add(button);
+        }
         buttons.Children.Add(copy);
         buttons.Children.Add(paste);
         buttons.Children.Add(revert);

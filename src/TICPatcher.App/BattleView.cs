@@ -24,7 +24,16 @@ public sealed class BattleView : UserControl
     public BattleView(ModProject project, Action<string> status, Action<string, int> navigate)
     {
         _project = project;
-        Units = new TableEditor(project, Battles.Units, status, navigate) { Describe = Describe };
+        Units = new TableEditor(project, Battles.Units, status, navigate)
+        {
+            Describe = Describe,
+            Actions =
+            [
+                ("Random gear", "Secondary action, reaction, support, movement and all equipment: <Random>",
+                    [("SecondaryAction", "254"), ("Reaction", "510"), ("Support", "510"), ("Movement", "510"),
+                     ("Head", "254"), ("Body", "254"), ("Accessory", "254"), ("RightHand", "254"), ("LeftHand", "254")]),
+            ],
+        };
 
         var left = new DockPanel { Width = 260, Margin = new Thickness(8, 8, 0, 8) };
         DockPanel.SetDock(_filter, Dock.Top);

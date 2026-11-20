@@ -32,6 +32,16 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
         Pump();
         continue;
     }
+    // click:Label presses the button with that text on the current tab.
+    if (shot.StartsWith("click:"))
+    {
+        var current = (Control)window.GetLogicalDescendants().OfType<TabControl>().First().SelectedContent!;
+        var button = current.GetLogicalDescendants().OfType<Button>().First(b => b.Content as string == shot[6..]);
+        button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Pump();
+        Console.WriteLine($"clicked {shot[6..]}");
+        continue;
+    }
     // type:N:text types into the Nth number box on the current tab, key by key, as a user would.
     if (shot.StartsWith("type:"))
     {
