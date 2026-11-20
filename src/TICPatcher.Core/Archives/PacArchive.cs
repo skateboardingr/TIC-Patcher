@@ -88,8 +88,11 @@ public sealed class PacArchive
     public PacEntry? Find(string name) => Entries.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>A file's contents, decompressed.</summary>
+    /// <param name="wipe">Clear the other files decompressed with it before returning, e.g. so
+    /// code running inside the game that later searches its memory for this file's contents
+    /// doesn't find stray copies of its own.</param>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    public byte[] Read(PacEntry entry, GDeflate codec)
+    public byte[] Read(PacEntry entry, GDeflate codec, bool wipe = false)
     {
         using var file = File.OpenRead(Path);
         if (entry.Block != 0)
@@ -97,10 +100,16 @@ public sealed class PacArchive
             var block = _blocks[entry.Block];
             var packed = ReadAt(file, block.Offset, (int)block.CompressedSize);
             var unpacked = codec.Decompress(packed, (int)block.Size);
-            return unpacked.AsSpan((int)entry.Offset, (int)entry.Size).ToArray();
+            var result = unpacked.AsSpan((int)entry.Offset, (int)entry.Size).ToArray();
+            if (wipe)
+                Array.Clear(unpacked);
+            return result;
         }
         var data = ReadAt(file, entry.Offset, (int)entry.CompressedSize);
-        return entry.Compressed ? codec.Decompress(data, (int)entry.Size) : data;
+        if (!entry.Compressed)
+            return data;
+        var bytes = codec.Decompress(data, (int)entry.Size);
+        return bytes;
     }
 
     private static byte[] ReadAt(FileStream file, long offset, int length)

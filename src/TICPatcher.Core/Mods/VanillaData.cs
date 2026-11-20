@@ -64,12 +64,22 @@ public sealed class VanillaData
         var folder = Path.GetDirectoryName(Path.GetFullPath(gameExe))!;
         var archive = Archives.PacArchive.Open(Path.Combine(folder, "data", "enhanced", "0002.pac"));
         using var codec = new Archives.GDeflate(folder);
-        var bytes = new List<byte>(Battles.Units.Length);
+        // Straight into one array, wiping the pieces: TIC Loader searches the game's memory
+        // for these bytes and must find only the game's copy.
+        var bytes = new byte[Battles.Units.Length];
+        var at = 0;
         foreach (var file in Battles.Files)
-            bytes.AddRange(archive.Read(archive.Find(file) ?? throw new FormatException($"{file} isn't in 0002.pac"), codec));
-        if (bytes.Count != Battles.Units.Length)
-            throw new FormatException($"The battle files hold {bytes.Count} bytes, expected {Battles.Units.Length}.");
-        return [.. bytes];
+        {
+            var piece = archive.Read(archive.Find(file) ?? throw new FormatException($"{file} isn't in 0002.pac"), codec, wipe: true);
+            if (at + piece.Length > bytes.Length)
+                throw new FormatException($"The battle files hold more than {bytes.Length} bytes.");
+            piece.CopyTo(bytes, at);
+            at += piece.Length;
+            Array.Clear(piece);
+        }
+        if (at != bytes.Length)
+            throw new FormatException($"The battle files hold {at} bytes, expected {bytes.Length}.");
+        return bytes;
     }
 
     /// <summary>

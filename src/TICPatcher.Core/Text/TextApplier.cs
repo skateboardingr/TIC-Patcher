@@ -22,8 +22,12 @@ public static class TextApplier
     /// <param name="done">Tables already moved (by name) and the copies made (by address), kept between calls
     /// so a table the game loads later is caught and a copy is never moved again.</param>
     /// <returns>How many tables the mod changes are now done.</returns>
-    public static int Relocate(ProcessMemory memory, TableEdits edits, Done done, Action<string> log)
+    /// <param name="insideGame">Running inside the game (TIC Loader): skip hits in .NET's managed heap,
+    /// which are this code's own copies of what it read, not the game's tables or pointers.</param>
+    public static int Relocate(ProcessMemory memory, TableEdits edits, Done done, Action<string> log, bool insideGame = false)
     {
+        var managed = insideGame ? memory.ManagedHeapBases() : [];
+        bool Ours(long address) => managed.Count > 0 && managed.Contains(memory.AllocationBase(address));
         var wanted = edits.AllText.Select(e => e.Table).Where(t => !done.Tables.Contains(t)).ToHashSet();
         if (wanted.Count == 0)
             return done.Tables.Count;
@@ -34,7 +38,7 @@ public static class TextApplier
         // 1. The loaded text tables the mod changes.
         var tables = new Dictionary<long, FoundTable>();
         foreach (var (start, bytes) in Blocks())
-            foreach (var table in TextPatcher.Find(bytes, start).Where(t => wanted.Contains(t.Table.Name) && !done.Copies.Contains(t.Address)))
+            foreach (var table in TextPatcher.Find(bytes, start).Where(t => wanted.Contains(t.Table.Name) && !done.Copies.Contains(t.Address) && !Ours(t.Address)))
                 tables[table.Address] = table;
 
         if (tables.Count == 0)
@@ -58,12 +62,12 @@ public static class TextApplier
                 if (index >= 0)
                 {
                     var size = i + 16 <= bytes.Length ? BitConverter.ToInt64(bytes, i + 8) : 0;
-                    if (size is > 0x30 and < MaxTable)
+                    if (size is > 0x30 and < MaxTable && !Ours(start + i))
                         (records.TryGetValue(value, out var list) ? list : records[value] = []).Add((start + i, size));
                     continue;
                 }
                 var owner = starts[~index - 1 < 0 ? 0 : ~index - 1];
-                if (~index > 0 && value - owner < MaxTable)
+                if (~index > 0 && value - owner < MaxTable && !Ours(start + i))
                     pointers[owner].Add((start + i, value));
             }
         // Only tables the game holds this way, with one agreed size (not the raw archive data).
@@ -90,13 +94,28 @@ public static class TextApplier
             foreach (var (pointer, value) in TextPatcher.Pointers(table with { Address = at }, strings, at + size))
                 BitConverter.GetBytes(value).CopyTo(copy, pointer - at);
             memory.Write(at, copy);
+            // A place that has since been freed is skipped rather than stopping everything.
+            var failed = 0;
+            void TryWrite(long where, byte[] bytes)
+            {
+                try
+                {
+                    memory.Write(where, bytes);
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    failed++;
+                }
+            }
             foreach (var (recordAt, _) in refs)
             {
-                memory.Write(recordAt, BitConverter.GetBytes(at));
-                memory.Write(recordAt + 8, BitConverter.GetBytes((long)copy.Length));
+                TryWrite(recordAt, BitConverter.GetBytes(at));
+                TryWrite(recordAt + 8, BitConverter.GetBytes((long)copy.Length));
             }
             foreach (var (pointerAt, value) in inside[address])
-                memory.Write(pointerAt, BitConverter.GetBytes(at + (value - address)));
+                TryWrite(pointerAt, BitConverter.GetBytes(at + (value - address)));
+            if (failed > 0)
+                log($"{table.Table.Name}: {failed} place(s) couldn't be written (freed meanwhile); skipped");
             done.Tables.Add(table.Table.Name);
             done.Copies.Add(at);
             log($"{table.Table.Name}: {strings.Count} text change(s); moved to a {copy.Length}-byte copy ({refs.Count} record(s), {inside[address].Count} pointer(s) updated)");

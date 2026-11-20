@@ -23,24 +23,32 @@ public static class BattleMemory
     /// Where the game's battle block is, from the original battles, or null if it isn't
     /// loaded yet or the places found disagree (then nothing is guessed).
     /// </summary>
-    public static long? Find(ProcessMemory memory, byte[] originalBattles)
+    /// <param name="insideGame">Searching from inside the game (TIC Loader): then TIC Loader's own
+    /// copies (its arrays, and the buffers the search reads memory into) are in the same memory. They
+    /// all live in .NET's managed heap, so hits there are skipped; the game's block is in its own heap.</param>
+    public static long? Find(ProcessMemory memory, byte[] originalBattles, bool insideGame = false, Action<string>? why = null)
     {
         var probes = ProbeBattles
             .Select(b => (Offset: b * BattleSize, Bytes: originalBattles.AsSpan(b * BattleSize, 2 * BattleSize).ToArray()))
             .Where(p => p.Bytes.Any(x => x != 0))
             .ToList();
+        var managed = insideGame ? memory.ManagedHeapBases() : [];
         var hits = probes.ToDictionary(p => p.Offset, _ => new List<long>());
         foreach (var (start, bytes) in memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true))
             foreach (var (offset, probe) in probes)
                 for (var at = bytes.AsSpan().IndexOf(probe); at >= 0;)
                 {
-                    hits[offset].Add(start + at - offset);
+                    if (managed.Count == 0 || !managed.Contains(memory.AllocationBase(start + at)))
+                        hits[offset].Add(start + at - offset);
                     var next = bytes.AsSpan(at + 1).IndexOf(probe);
                     at = next < 0 ? -1 : at + 1 + next;
                 }
         // Each probe found once (unchanged ones), all pointing at the same block.
         var places = hits.Values.Where(h => h.Count == 1).Select(h => h[0]).Distinct().ToList();
-        return places.Count == 1 && hits.Values.All(h => h.Count <= 1) ? places[0] : null;
+        if (places.Count == 1 && hits.Values.All(h => h.Count <= 1))
+            return places[0];
+        why?.Invoke($"pieces found {string.Join(", ", hits.Select(h => $"{h.Key / BattleSize:X3}:{h.Value.Count}"))}; places {string.Join(", ", hits.Values.SelectMany(h => h).Distinct().Select(a => $"0x{a:X}"))}");
+        return null;
     }
 
     /// <summary>What the block should hold: the original battles with the edits applied.</summary>

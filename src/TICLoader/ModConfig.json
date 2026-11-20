@@ -2,7 +2,7 @@
   "ModId": "tic.loader",
   "ModName": "TIC Loader",
   "ModAuthor": "TIC Patcher contributors",
-  "ModVersion": "0.4.0",
+  "ModVersion": "0.4.1",
   "ModDescription": "Applies TIC Patcher mods (TIC/tables.json) to FINAL FANTASY TACTICS - The Ivalice Chronicles. Builds on FFTPatcher's research by Glain and Joe Davidson.",
   "ModDll": "tic.loader.dll",
   "ModIcon": "",

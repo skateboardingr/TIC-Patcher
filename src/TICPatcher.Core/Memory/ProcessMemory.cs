@@ -23,6 +23,35 @@ public sealed class ProcessMemory(IntPtr handle)
     /// with back-to-back regions joined into one block: a protection change
     /// splits a region, and a table must not be missed because it straddles the split.
     /// </summary>
+    /// <summary>
+    /// Where this process's .NET managed heap is reserved (by allocation base), for code running
+    /// inside the game: its own arrays and the buffers memory is read into live there, so a search
+    /// of the game's memory skips hits in it rather than finding copies of what it read.
+    /// </summary>
+    public HashSet<long> ManagedHeapBases()
+    {
+        var bases = new HashSet<long>();
+        foreach (var sample in new[] { new byte[16], new byte[200_000] })
+        {
+            var pin = GCHandle.Alloc(sample, GCHandleType.Pinned);
+            try
+            {
+                bases.Add(AllocationBase((long)pin.AddrOfPinnedObject()));
+            }
+            finally
+            {
+                pin.Free();
+            }
+        }
+        return bases;
+    }
+
+    /// <summary>The start of the reservation an address belongs to (0 if it isn't in one).</summary>
+    public long AllocationBase(long address) =>
+        Native.VirtualQueryEx(Handle, (IntPtr)address, out var info, (IntPtr)Marshal.SizeOf<Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero
+            ? (long)info.AllocationBase
+            : 0;
+
     public IEnumerable<(long Start, byte[] Bytes)> ContiguousBlocks(long from, long to, bool privateOnly = false)
     {
         long blockStart = -1;

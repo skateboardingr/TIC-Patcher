@@ -142,7 +142,7 @@ public class Startup : IMod
         while (true)
         {
             var attempt = Stopwatch.StartNew();
-            var count = TICPatcher.Core.Text.TextApplier.Relocate(memory, edits, done, Log);
+            var count = TICPatcher.Core.Text.TextApplier.Relocate(memory, edits, done, Log, insideGame: true);
             Log($"text: looked in {attempt.ElapsedMilliseconds} ms, {count} of {tables} table(s) done");
             if (count >= tables)
             {
@@ -167,6 +167,8 @@ public class Startup : IMod
         {
             var original = VanillaData.ReadBattles(gameExe);
             var wanted = BattleMemory.Wanted(original, edits);
+            Log($"Battles: {edits.All.Count(e => e.Table == Battles.Units.Name)} field(s) to apply; looking for the game's battles");
+            var told = false;
             var waited = Stopwatch.StartNew();
             long? at = null;
             while (true)
@@ -177,7 +179,11 @@ public class Startup : IMod
                     continue;
                 }
                 var attempt = Stopwatch.StartNew();
-                at = BattleMemory.Find(memory, original);
+                at = BattleMemory.Find(memory, original, insideGame: true, why: told ? null : reason =>
+                {
+                    Log($"Battles: not found yet ({reason})");
+                    told = true;
+                });
                 if (at is { } found)
                 {
                     var bytes = BattleMemory.Apply(memory, found, wanted);
