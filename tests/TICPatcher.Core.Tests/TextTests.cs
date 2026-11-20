@@ -112,6 +112,19 @@ public class TextTests
     }
 
     [Fact]
+    public void MergingReportsOnlyRealClashes()
+    {
+        var a = TableEdits.Parse("""{ "Jobs": { "0x01": { "Move": 6, "Jump": 4 } }, "Text": { "ItemText": { "0xFD": { "Name": "Phoenix Up" } } } }""");
+        var b = TableEdits.Parse("""{ "Jobs": { "0x01": { "Move": 6, "SpeedConstant": 9 }, "0x02": { "Move": 5 } }, "Text": { "ItemText": { "0xFD": { "Name": "Phoenix Sideways" } } } }""");
+        Assert.Equal(["ItemText 0xFD Name"], a.Conflicts(b)); // the same Move twice isn't a clash
+        a.Merge(b);
+        Assert.Equal("4", a.Get("Jobs", 1, "Jump"));
+        Assert.Equal("9", a.Get("Jobs", 1, "SpeedConstant"));
+        Assert.Equal("5", a.Get("Jobs", 2, "Move"));
+        Assert.Equal("Phoenix Sideways", a.GetText("ItemText", 0xFD, "Name"));
+    }
+
+    [Fact]
     public void TextEditsRoundTripThroughTablesJson()
     {
         var edits = TableEdits.Parse("""

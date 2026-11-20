@@ -50,7 +50,7 @@ public static class TextTables
     public static readonly TextTable Characters = new("CharacterNames", "charaname.nxd", 4,
     [
         new("Name", 4),
-    ], "Characters") { Rows = 1024, RowLength = 24 };
+    ], Tables.Names.SpecialNames) { Rows = 1024, RowLength = 24 }; // row N is a battle unit's special name N (0x07 Argath)
 
     // Row N is skill set N (0x05 Fundaments, 0x0A White Magicks).
     public static readonly TextTable SkillSets = new("SkillSetText", "jobcommand.nxd", 4,

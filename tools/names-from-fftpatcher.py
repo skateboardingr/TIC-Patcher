@@ -22,10 +22,16 @@ XML_LISTS = {
     "Formulas": ("AbilityFormulas.xml", "Ability", "value", 16, None),
     "ShopAvailability": ("PSP/Items/Strings.xml", "ShopAvailabilities/string", "value", 10, "name"),
     "Errands": ("PSP/Errands.xml", "entry", "value", 10, "name"),
-    # Battles (ENTD): TIC's battle files are the PSX game's, so its names.
+    # Battles (ENTD): War of the Lions names, which TIC's English follows.
+    "Battles": ("PSP/EventNames.xml", "Event", "value", 16, "name"),
+    "SpriteSets": ("PSP/SpriteSets.xml", "Sprite", "byte", 16, "name"),
+    "SpecialNames": ("PSP/SpecialNames.xml", "SpecialName", "byte", 16, "name"),
+}
+
+# name: list to fill gaps from (entries missing or "None" in the main list). FFTPatcher's PSP
+# list names fewer battles; the PSX one labels the rest (mostly story scenes).
+FALLBACKS = {
     "Battles": ("PSX-US/EventNames.xml", "Event", "value", 16, "name"),
-    "SpriteSets": ("PSX-US/SpriteSets.xml", "Sprite", "byte", 16, "name"),
-    "SpecialNames": ("PSX-US/SpecialNames.xml", "SpecialName", "byte", 16, "name"),
 }
 
 # name: (C# file, enum name). Members count up from 0; [PSPDescription] or [Description] gives the display name.
@@ -63,18 +69,43 @@ def read_enum(path, enum):
     return names
 
 
+def read_xml(checkout, file, element, attr, base, name_attr):
+    root = ET.parse(f"{checkout}/{RESOURCES}/{file}").getroot()
+    found = {}
+    for e in (root.iterfind(element) if "/" in element else root.iter(element)):
+        if e.get(attr) is None:
+            continue
+        text = e.get(name_attr) if name_attr else (e.text or "")
+        found[int(e.get(attr), base)] = text.strip()
+    return found
+
+
+_respellings = None
+
+
+def respell(checkout, text):
+    """PSX spellings of characters in a fallback label, as War of the Lions (and TIC) spell them
+    ("Algus" as "Argath"), from FFTPatcher's PSX and PSP special name lists."""
+    global _respellings
+    if _respellings is None:
+        spec = ("SpecialName", "byte", 16, "name")
+        psx = read_xml(checkout, "PSX-US/SpecialNames.xml", *spec)
+        psp = read_xml(checkout, "PSP/SpecialNames.xml", *spec)
+        _respellings = {psx[k]: psp[k] for k in psx.keys() & psp.keys()
+                        if psx[k] != psp[k] and re.fullmatch(r"[A-Z][a-z]+", psx[k]) and re.fullmatch(r"[A-Z][a-z]+", psp[k])}
+    return re.sub(r"[A-Z][a-z]+", lambda m: _respellings.get(m.group(0), m.group(0)), text)
+
+
 def main(checkout, out):
     names = {"_source": "Names from FFTPatcher (https://github.com/Glain/FFTPatcher, GPL-3.0) by Joe Davidson and Glain: "
                         "PatcherLib.Resources/Resources (War of the Lions names) and its Datatypes enums. "
                         "Regenerate with tools/names-from-fftpatcher.py."}
-    for key, (file, element, attr, base, name_attr) in XML_LISTS.items():
-        root = ET.parse(f"{checkout}/{RESOURCES}/{file}").getroot()
-        found = {}
-        for e in (root.iterfind(element) if "/" in element else root.iter(element)):
-            if e.get(attr) is None:
-                continue
-            text = e.get(name_attr) if name_attr else (e.text or "")
-            found[int(e.get(attr), base)] = text.strip()
+    for key, spec in XML_LISTS.items():
+        found = read_xml(checkout, *spec)
+        if key in FALLBACKS:
+            for k, v in read_xml(checkout, *FALLBACKS[key]).items():
+                if found.get(k, "None") == "None":
+                    found[k] = respell(checkout, v)
         names[key] = {str(k): v for k, v in sorted(found.items())}
     for key, (file, enum) in ENUM_LISTS.items():
         found = read_enum(f"{checkout}/{file}", enum)

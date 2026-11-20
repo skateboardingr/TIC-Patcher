@@ -33,7 +33,7 @@ public static class Battles
         [
             FieldDef.U8("SpriteSet", 0) with { NameList = Names.SpriteSets },
             FieldDef.Flags("Flags1", 1, ["Male", "Female", "Monster", "JoinAfterEvent", "LoadFormation", "ZodiacMonster", "Blank2", "SaveFormation"]),
-            FieldDef.U8("SpecialName", 2) with { NameList = Names.SpecialNames },
+            FieldDef.U8("SpecialName", 2) with { NameList = Names.SpecialNames, Specials = new Dictionary<int, string> { [0xFF] = "<Random>" } },
             FieldDef.U8("Level", 3),
             FieldDef.U8("Month", 4) with { NameList = Names.Months },
             FieldDef.U8("Day", 5),

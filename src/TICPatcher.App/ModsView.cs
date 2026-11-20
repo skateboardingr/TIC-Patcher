@@ -16,12 +16,14 @@ public sealed class ModsView : UserControl
 {
     private readonly Action<string> _status;
     private readonly Action<ReloadedSetup.InstalledMod> _edit;
+    private readonly Action<ReloadedSetup.InstalledMod>? _merge;
     private readonly StackPanel _list = new() { Spacing = 8 };
 
-    public ModsView(Action<string> status, Action<ReloadedSetup.InstalledMod> edit)
+    public ModsView(Action<string> status, Action<ReloadedSetup.InstalledMod> edit, Action<ReloadedSetup.InstalledMod>? merge = null)
     {
         _status = status;
         _edit = edit;
+        _merge = merge;
         var refresh = new Button { Content = "Refresh" };
         refresh.Click += (_, _) => Fill();
         var top = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
@@ -118,6 +120,13 @@ public sealed class ModsView : UserControl
             ToolTip.SetTip(edit, "Open this mod's table changes in the editor.");
             edit.Click += (_, _) => _edit(mod);
             buttons.Children.Add(edit);
+            if (_merge is not null)
+            {
+                var merge = new Button { Content = "Merge" };
+                ToolTip.SetTip(merge, "Add this mod's changes to the one in the editor, e.g. to combine two mods into one. Save mod keeps the result.");
+                merge.Click += (_, _) => _merge(mod);
+                buttons.Children.Add(merge);
+            }
         }
         var delete = new Button { Content = "Delete" };
         ToolTip.SetTip(delete, "Turn this mod off and move its folder to the Recycle Bin.");

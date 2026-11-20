@@ -187,6 +187,15 @@ public sealed class TableEdits
             SetText(table, record, field, value);
     }
 
+    /// <summary>Fields both edits set, to different values (merging gives <paramref name="later"/>'s).</summary>
+    public List<string> Conflicts(TableEdits later) =>
+    [
+        .. later.All.Where(e => Get(e.Table, e.Record, e.Field) is { } mine && mine != e.Value)
+            .Select(e => $"{e.Table} 0x{e.Record:X2} {e.Field}"),
+        .. later.AllText.Where(e => GetText(e.Table, e.Record, e.Field) is { } mine && mine != e.Value)
+            .Select(e => $"{e.Table} 0x{e.Record:X2} {e.Field}"),
+    ];
+
     /// <summary>The tables these edits change.</summary>
     public IEnumerable<string> ChangedTables => _edits.Keys;
 

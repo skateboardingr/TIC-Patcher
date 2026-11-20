@@ -212,7 +212,7 @@ public sealed class MainWindow : Window
         _project.Changed += UpdateTitle;
         _project.Changed += SaveSession;
         var tabs = new TabControl();
-        _mods = new ModsView(Status, mod => _ = OpenModFile(Path.Combine(mod.Folder, ModCollector.TablesFile)));
+        _mods = new ModsView(Status, mod => _ = OpenModFile(Path.Combine(mod.Folder, ModCollector.TablesFile)), mod => _ = MergeMod(mod));
         tabs.Items.Add(new TabItem { Header = "Mods", Content = _mods });
         _places.Clear();
         foreach (var (tab, tables) in Groups)
@@ -399,6 +399,32 @@ public sealed class MainWindow : Window
             if (error is FileNotFoundException or BadImageFormatException)
                 File.Delete(FftPatcherSetting); // ask for the folder again next time
             Status($"Couldn't import {Path.GetFileName(path)}: {error.Message}");
+        }
+    }
+
+    // Adds another mod's changes to the editor's, as a new combined mod (Save mod keeps it).
+    private async Task MergeMod(ReloadedSetup.InstalledMod mod)
+    {
+        if (_project is null)
+            return;
+        try
+        {
+            var other = TableEdits.Parse(await File.ReadAllTextAsync(Path.Combine(mod.Folder, ModCollector.TablesFile)));
+            var conflicts = _project.Edits.Conflicts(other);
+            var merged = TableEdits.Parse(_project.Edits.ToJson());
+            merged.Merge(other);
+            var name = $"{ModName} + {mod.Name}";
+            _modName.Text = name;
+            _modId = null; // a new mod; the originals stay as they are
+            _path = null;
+            Load(_project.Vanilla, conflicts.Count == 0
+                ? $"Merged {mod.Name}: {other.Count} change(s) added, no clashes. Press Save mod to keep \"{name}\"."
+                : $"Merged {mod.Name}: {other.Count} change(s); {conflicts.Count} field(s) both mods set differently now have {mod.Name}'s value ({string.Join(", ", conflicts.Take(5))}{(conflicts.Count > 5 ? ", …" : "")}).",
+                merged);
+        }
+        catch (Exception error) when (error is FormatException or IOException or System.Text.Json.JsonException)
+        {
+            Status($"Couldn't merge {mod.Name}: {error.Message}");
         }
     }
 
