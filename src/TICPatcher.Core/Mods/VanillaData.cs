@@ -55,7 +55,11 @@ public sealed class VanillaData
     /// installed game's data\enhanced\0002.pac (read-only).
     /// </summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    public void AddBattles(string gameExe)
+    public void AddBattles(string gameExe) => Tables[Battles.Units.Name] = ReadBattles(gameExe);
+
+    /// <summary>The original battles, from the installed game's data\enhanced\0002.pac.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static byte[] ReadBattles(string gameExe)
     {
         var folder = Path.GetDirectoryName(Path.GetFullPath(gameExe))!;
         var archive = Archives.PacArchive.Open(Path.Combine(folder, "data", "enhanced", "0002.pac"));
@@ -65,7 +69,7 @@ public sealed class VanillaData
             bytes.AddRange(archive.Read(archive.Find(file) ?? throw new FormatException($"{file} isn't in 0002.pac"), codec));
         if (bytes.Count != Battles.Units.Length)
             throw new FormatException($"The battle files hold {bytes.Count} bytes, expected {Battles.Units.Length}.");
-        Tables[Battles.Units.Name] = [.. bytes];
+        return [.. bytes];
     }
 
     /// <summary>

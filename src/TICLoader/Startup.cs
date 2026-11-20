@@ -104,7 +104,9 @@ public class Startup : IMod
             foreach (var table in edits.ChangedTables)
             {
                 var schema = TableEdits.KnownTables[table];
-                if (table == Jobs.Schema.Name)
+                if (table == Battles.Units.Name)
+                    new Thread(() => KeepBattles(memory, module.FileName, edits)) { IsBackground = true, Name = "TIC Loader battles" }.Start();
+                else if (table == Jobs.Schema.Name)
                     ApplyTable(memory, schema, edits, moduleStart, jobs);
                 else if (build is not null && build.Tables.TryGetValue(table, out var offset))
                     ApplyTable(memory, schema, edits, moduleStart, offset);
@@ -153,6 +155,48 @@ public class Startup : IMod
                 return;
             }
             Thread.Sleep(3000);
+        }
+    }
+
+    // Battles: the game loads them into a block of its own memory at start-up. Find it
+    // (by the original battles, read from the game's archive), write the mods' units, and
+    // keep checking: if the game reloads its battles, write them again.
+    private void KeepBattles(ProcessMemory memory, string gameExe, TableEdits edits)
+    {
+        try
+        {
+            var original = VanillaData.ReadBattles(gameExe);
+            var wanted = BattleMemory.Wanted(original, edits);
+            var waited = Stopwatch.StartNew();
+            long? at = null;
+            while (true)
+            {
+                if (at is { } known && BattleMemory.Holds(memory, known, wanted))
+                {
+                    Thread.Sleep(5000);
+                    continue;
+                }
+                var attempt = Stopwatch.StartNew();
+                at = BattleMemory.Find(memory, original);
+                if (at is { } found)
+                {
+                    var bytes = BattleMemory.Apply(memory, found, wanted);
+                    Log($"Battles: {bytes} byte(s) changed at 0x{found:X} (looked for {attempt.ElapsedMilliseconds} ms)");
+                    waited.Restart();
+                }
+                else if (waited.Elapsed > TimeSpan.FromMinutes(3))
+                {
+                    Log("Battles: the game's battles weren't found; battles are unchanged. Still looking every 30 s.");
+                    Thread.Sleep(30000);
+                    waited.Restart();
+                }
+                else
+                    Thread.Sleep(2000);
+            }
+        }
+        catch (Exception error)
+        {
+            Log("Battles: failed: " + error);
         }
     }
 

@@ -297,6 +297,65 @@ if (args.Length >= 3 && args[0] == "--peek" && OperatingSystem.IsWindows())
 
 // TICScan --find <text> [--nxd]: where the running game holds some text (read-only),
 // and with --nxd every NXDF table header with the first name in it.
+// TICScan --battles: where the running game holds its battles (as TIC Loader finds them), read-only.
+if (args.Length >= 1 && args[0] == "--battles" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var original = TICPatcher.Core.Mods.VanillaData.ReadBattles(game.MainModule!.FileName);
+    var timer = Stopwatch.StartNew();
+    var at = TICPatcher.Core.Mods.BattleMemory.Find(memory, original);
+    Console.WriteLine(at is { } found
+        ? $"battles at 0x{found:X} ({timer.ElapsedMilliseconds} ms); {(TICPatcher.Core.Mods.BattleMemory.Holds(memory, found, original) ? "all original" : "some changed")}"
+        : $"not found ({timer.ElapsedMilliseconds} ms)");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --find-file <file> [chunk size]: where pieces of a data file (e.g. a battle file
+// extracted with --pac-extract) are in the running game's memory, and how much of the file
+// surrounds each place, i.e. whether the game holds the whole file or just a part.
+if (args.Length >= 2 && args[0] == "--find-file" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var file = File.ReadAllBytes(args[1]);
+    var chunk = args.Length > 2 ? int.Parse(args[2]) : 640;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    // Distinct, non-blank pieces of the file to look for.
+    var probes = Enumerable.Range(0, file.Length / chunk)
+        .Select(i => (Offset: i * chunk, Bytes: file.AsSpan(i * chunk, Math.Min(64, chunk)).ToArray()))
+        .Where(p => p.Bytes.Distinct().Count() > 8)
+        .GroupBy(p => Convert.ToHexString(p.Bytes)).Where(g => g.Count() == 1).Select(g => g.First())
+        .ToList();
+    Console.WriteLine($"{args[1]}: {file.Length} bytes, {probes.Count} distinct {chunk}-byte pieces to look for");
+    var hits = new List<(long Address, int Offset)>();
+    foreach (var (blockStart, bytes) in memory.ContiguousBlocks(0, long.MaxValue))
+        foreach (var (offset, probe) in probes)
+            for (var at = bytes.AsSpan().IndexOf(probe); at >= 0;)
+            {
+                hits.Add((blockStart + at, offset));
+                var next = bytes.AsSpan(at + 1).IndexOf(probe);
+                at = next < 0 ? -1 : at + 1 + next;
+            }
+    // Group hits that belong to one copy (same address minus offset).
+    foreach (var copy in hits.GroupBy(h => h.Address - h.Offset).OrderByDescending(g => g.Count()).Take(20))
+    {
+        var start = copy.Key;
+        var first = copy.Min(h => h.Offset);
+        var last = copy.Max(h => h.Offset) + chunk;
+        Console.WriteLine($"  copy at 0x{start:X} (file offset 0 there): {copy.Count()} piece(s), file bytes 0x{first:X}-0x{last:X}");
+    }
+    Console.WriteLine($"{hits.Count} hit(s) in all.");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
 if (args.Length >= 2 && args[0] == "--find" && OperatingSystem.IsWindows())
 {
     var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();

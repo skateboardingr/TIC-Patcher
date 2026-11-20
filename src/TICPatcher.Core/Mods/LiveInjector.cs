@@ -40,10 +40,21 @@ public static class LiveInjector
                 bytes += memory.WriteChanges(start + offset, memory.Read(start + offset, wanted.Length), wanted);
             }
 
+            // Battles live in a block of the game's own memory, found by the original battles.
+            // Done even with no battle edits, so ones reverted in the editor go back too.
+            var battles = "";
+            if (project.Vanilla.Tables.TryGetValue(Battles.Units.Name, out var originalBattles))
+            {
+                var edited = project.Edits.ChangedTables.Contains(Battles.Units.Name);
+                battles = BattleMemory.Find(memory, originalBattles) is { } at
+                    ? $", {BattleMemory.Apply(memory, at, BattleMemory.Wanted(originalBattles, project.Edits))} byte(s) of battles"
+                    : edited ? ", but the battles weren't found in the game's memory (not changed)" : "";
+            }
+
             var texts = 0;
             if (project.Edits.AllText.Any())
                 texts = Text.TextApplier.Relocate(memory, project.Edits, new Text.TextApplier.Done(), log);
-            return $"Injected into the running game: {bytes} byte(s) of stats changed{(texts > 0 ? $", {texts} text table(s) updated" : "")}. Temporary until the game closes.";
+            return $"Injected into the running game: {bytes} byte(s) of stats changed{battles}{(texts > 0 ? $", {texts} text table(s) updated" : "")}. Temporary until the game closes.";
         }
         finally
         {
