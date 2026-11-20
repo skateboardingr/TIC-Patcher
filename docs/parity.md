@@ -35,7 +35,8 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Feature | TIC Patcher |
 |---|---|
 | Original value on hover, revert a record | ✓ |
-| Names in lists and for skill sets / abilities | ✓ |
+| Names in lists and for skill sets / abilities | ✓ TIC's own names, read from the game |
+| Edit names and descriptions (items, jobs, abilities, skill sets, units) | ✓ |
 | Dropdowns with names for formulas, item types, menu actions, effects, ability types, shop availability | ✓ |
 | Inflict status dropdown that shows which statuses each entry inflicts | ✓ |
 | Copy and paste records | ✓ |
@@ -45,14 +46,14 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Save as a ready Reloaded-II mod, enable it and launch the game ("Play") | ✓ |
 | Mods tab: turn installed mods on and off, open TIC mods in the editor | ✓ |
 | TIC Loader built in, installed or updated by Play | ✓ |
-| Import an FFTPatcher patch file | ✗ |
+| Import an FFTPatcher patch file (.fftpatch, US PSP or PSX) | ✓ only what the patch changed (compared with FFTPatcher's defaults, read from the user's FFTPatcher folder), on top of TIC's values; flags bit by bit. Not yet: poaching, move-find, battles, War of the Lions' extra items |
 | Extension API for other mods (bridges to other mod formats) | ✓ ([bridge.md](bridge.md)) |
 
 ## Not needed
 
 ISO and savestate patching, CWCheat and cheat.db generation, fftpack tools: TIC Patcher's mods are applied by TIC Loader at run time, so the game's files are never patched.
 
-Text (names and descriptions, FFTacText's job) is a separate future step.
+Text (FFTacText's job) is done differently: names and descriptions of items, jobs, abilities, skill sets and units are edited beside their stats and applied by TIC Loader, never by patching files.
 
 ## Beyond FFTPatcher
 

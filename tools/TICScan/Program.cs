@@ -248,6 +248,29 @@ if (args.Length >= 1 && args[0] == "--text-tables" && OperatingSystem.IsWindows(
     ProcessMemory.Native.CloseHandle(handle);
     return 0;
 }
+// TICScan --fftpatcher-defaults <FFTPatcher folder> [vanilla.json]: lists FFTPatcher's default
+// tables and, given TIC's originals, how many PSP default records match TIC's (checks the import mapping).
+if (args.Length >= 2 && args[0] == "--fftpatcher-defaults")
+{
+    var defaults = TICPatcher.Core.Import.FftPatch.ReadDefaults(args[1]);
+    foreach (var (name, bytes) in defaults.Where(d => d.Key.EndsWith(".bin", StringComparison.OrdinalIgnoreCase) || d.Key.EndsWith(".ENT", StringComparison.OrdinalIgnoreCase)).OrderBy(d => d.Key))
+        Console.WriteLine($"  {name,-45} {bytes.Length,8}");
+    if (args.Length >= 3)
+        foreach (var (table, same, total) in TICPatcher.Core.Import.FftPatch.CompareWithTic(defaults, TICPatcher.Core.Mods.VanillaData.Load(args[2])))
+            Console.WriteLine($"{table,-20} {same,4}/{total,-4} PSP records identical in TIC");
+    return 0;
+}
+
+// TICScan --import-fftpatch <patch.fftpatch> <FFTPatcher folder> <vanilla.json>: what the editor's import makes of a patch.
+if (args.Length >= 4 && args[0] == "--import-fftpatch")
+{
+    var project = new TICPatcher.Core.Mods.ModProject(TICPatcher.Core.Mods.VanillaData.Load(args[3]));
+    var report = TICPatcher.Core.Import.FftPatch.Read(args[1]).ApplyTo(project, TICPatcher.Core.Import.FftPatch.ReadDefaults(args[2]));
+    Console.WriteLine(report);
+    Console.WriteLine(project.Edits.ToJson());
+    return 0;
+}
+
 if (args.Length >= 2 && args[0] == "--game-text" && OperatingSystem.IsWindows())
 {
     var text = TICPatcher.Core.Text.GameText.FromGame(args[1]);

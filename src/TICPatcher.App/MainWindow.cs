@@ -6,6 +6,7 @@ using Avalonia.Platform.Storage;
 using TICPatcher.Core.Mods;
 using TICPatcher.Core.Tables;
 using TICPatcher.Core.Tables.Schemas;
+using TICPatcher.Core.Import;
 using TICPatcher.Core.Text;
 
 namespace TICPatcher.App;
@@ -32,6 +33,8 @@ public sealed class MainWindow : Window
     ];
 
     private static readonly FilePickerFileType TablesJson = new("TIC mod tables") { Patterns = ["tables.json", "*.json"] };
+    private static readonly FilePickerFileType FftPatchFile = new("FFTPatcher patch") { Patterns = ["*.fftpatch"] };
+    private static readonly FilePickerFileType Importable = new("TIC mods and FFTPatcher patches") { Patterns = ["*.json", "*.fftpatch"] };
 
     private readonly ContentControl _body = new();
     private readonly TextBlock _status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(10, 6) };
@@ -321,11 +324,59 @@ public sealed class MainWindow : Window
         }
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Import a TIC mod's tables.json",
-            FileTypeFilter = [TablesJson],
+            Title = "Import a TIC mod's tables.json or an FFTPatcher patch",
+            FileTypeFilter = [Importable, TablesJson, FftPatchFile],
         });
-        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
+            return;
+        if (path.EndsWith(".fftpatch", StringComparison.OrdinalIgnoreCase))
+            await ImportFftPatch(path);
+        else
             await OpenModFile(path);
+    }
+
+    // Where FFTPatcher is, remembered: its defaults show what a patch changed.
+    private static string FftPatcherSetting => Path.Combine(VanillaData.Folder, "fftpatcher-folder.txt");
+
+    private async Task<string?> FftPatcherFolder()
+    {
+        var saved = File.Exists(FftPatcherSetting) ? File.ReadAllText(FftPatcherSetting).Trim() : null;
+        if (saved is not null && File.Exists(Path.Combine(saved, "PatcherLib.Resources.dll")))
+            return saved;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Pick the folder FFTPatcher.exe is in (its default tables show what the patch changed)",
+        });
+        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } folder)
+            return null;
+        Directory.CreateDirectory(VanillaData.Folder);
+        File.WriteAllText(FftPatcherSetting, folder);
+        return folder;
+    }
+
+    private async Task ImportFftPatch(string path)
+    {
+        if (_project is null || await FftPatcherFolder() is not { } folder)
+            return;
+        try
+        {
+            var patch = FftPatch.Read(path);
+            var defaults = FftPatch.ReadDefaults(folder);
+            // A new mod holding just the patch's changes, on top of TIC's own values.
+            var imported = new ModProject(_project.Vanilla) { GameText = _gameText };
+            var report = patch.ApplyTo(imported, defaults);
+            _path = null;
+            _modId = null;
+            _modName.Text = Path.GetFileNameWithoutExtension(path);
+            Load(_project.Vanilla, $"{Path.GetFileName(path)} ({(patch.Psp ? "PSP" : "PSX")}): {report} Name it above and press Save mod.", imported.Edits);
+        }
+        catch (Exception error) when (error is FormatException or IOException or InvalidDataException or BadImageFormatException
+            or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            if (error is FileNotFoundException or BadImageFormatException)
+                File.Delete(FftPatcherSetting); // ask for the folder again next time
+            Status($"Couldn't import {Path.GetFileName(path)}: {error.Message}");
+        }
     }
 
     private async Task OpenModFile(string path)
