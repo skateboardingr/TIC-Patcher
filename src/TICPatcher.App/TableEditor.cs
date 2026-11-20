@@ -147,7 +147,7 @@ public sealed class TableEditor : UserControl
         _fields.Children.Clear();
 
         var header = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-        var revert = new Button { Content = "Revert record", IsEnabled = _project.IsChanged(_schema, id) };
+        var revert = _revert = new Button { Content = "Revert record", IsEnabled = _project.IsChanged(_schema, id) };
         revert.Click += (_, _) =>
         {
             _project.Revert(_schema, id);
@@ -286,9 +286,11 @@ public sealed class TableEditor : UserControl
         var row = new DockPanel();
         DockPanel.SetDock(label, Dock.Left);
         row.Children.Add(label);
-        row.Children.Add(Editor(id, field));
+        row.Children.Add(Editor(id, field, label));
         return row;
     }
+
+    private Button? _revert;
 
     // Records in any table whose linked field points at this record.
     private List<(TableSchema Table, int Record, string Text)> UsersOf(int id)
@@ -337,7 +339,7 @@ public sealed class TableEditor : UserControl
     private static string Show(FieldDef field, string value) =>
         field.Kind == FieldKind.Flags ? (value.Length == 0 ? "(none)" : value) : value;
 
-    private Control Editor(int id, FieldDef field)
+    private Control Editor(int id, FieldDef field, TextBlock label)
     {
         var current = _project.Current(_schema, id, field.Name);
         var list = field.Kind == FieldKind.AbilityId ? Names.Abilities : field.NameList;
@@ -425,10 +427,30 @@ public sealed class TableEditor : UserControl
             Width = 160,
             HorizontalAlignment = HorizontalAlignment.Left,
         };
+        // Saved as typed, without redrawing the record: a redraw would replace this
+        // box mid-number and drop the focus (and the next keystrokes).
         number.ValueChanged += (_, _) =>
         {
-            if (number.Value is { } v)
-                Commit(id, field, ((int)v).ToString());
+            if (_building || number.Value is not { } v)
+                return;
+            try
+            {
+                _project.Set(_schema, id, field.Name, ((int)v).ToString());
+                _status($"{_schema.Name} 0x{id:X2} {field.Name} = {(int)v}");
+            }
+            catch (FormatException error)
+            {
+                _status(error.Message);
+            }
+            var changed = _project.IsChanged(_schema, id, field.Name);
+            label.FontWeight = changed ? FontWeight.Bold : FontWeight.Normal;
+            if (changed)
+                label.Foreground = ChangedBrush;
+            else
+                label.ClearValue(TextBlock.ForegroundProperty);
+            if (_revert is not null)
+                _revert.IsEnabled = _project.IsChanged(_schema, id);
+            RefreshLabel(id);
         };
         return number;
     }

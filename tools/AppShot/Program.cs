@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using TICPatcher.App;
 
 // AppShot <memory image> <output folder> [tab:record or tab:subtab:record ...]
@@ -29,6 +30,23 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
             .GetField("_project", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
         project.Set(TICPatcher.Core.Tables.Schemas.AllTables.ByName[e[1]], Convert.ToInt32(e[2], 16), e[3], e[4]);
         Pump();
+        continue;
+    }
+    // type:N:text types into the Nth number box on the current tab, key by key, as a user would.
+    if (shot.StartsWith("type:"))
+    {
+        var e = shot.Split(':');
+        var current = (Control)window.GetLogicalDescendants().OfType<TabControl>().First().SelectedContent!;
+        var box = current.GetLogicalDescendants().OfType<NumericUpDown>().Where(n => n.IsEffectivelyVisible).ElementAt(int.Parse(e[1]));
+        box.Focus();
+        Pump();
+        box.GetVisualDescendants().OfType<TextBox>().First().SelectAll();
+        foreach (var c in e[2])
+        {
+            window.KeyTextInput(c.ToString());
+            Pump();
+        }
+        Console.WriteLine($"typed {e[2]}: box shows {box.Text}, value {box.Value}, still focused: {box.IsKeyboardFocusWithin}, attached: {box.IsAttachedToVisualTree()}");
         continue;
     }
     var parts = shot.Split(':').Select(int.Parse).ToArray();
