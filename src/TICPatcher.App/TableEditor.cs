@@ -103,6 +103,9 @@ public sealed class TableEditor : UserControl
     /// <summary>Extra buttons beside Copy and Paste that set several fields at once (e.g. a battle unit's gear to random).</summary>
     public IReadOnlyList<(string Label, string Tip, IReadOnlyList<(string Field, string Value)> Values)> Actions { get; init; } = [];
 
+    /// <summary>Fields Paste leaves as they are on the record pasted onto (e.g. a battle unit's tile).</summary>
+    public IReadOnlySet<string> PasteKeeps { get; init; } = new HashSet<string>();
+
     // Only these records, e.g. one battle's 16 units (null: the whole table).
     private (int First, int Count)? _range;
 
@@ -508,7 +511,7 @@ public sealed class TableEditor : UserControl
         if (_clipboard is not { } copied || copied.Table != _schema.Name)
             return;
         var failed = 0;
-        foreach (var (field, value) in copied.Values)
+        foreach (var (field, value) in copied.Values.Where(v => !PasteKeeps.Contains(v.Key)))
         {
             try
             {
@@ -519,7 +522,7 @@ public sealed class TableEditor : UserControl
                 failed++;
             }
         }
-        _status(failed == 0 ? $"Pasted onto {Label(id).Replace(" •", "")}" : $"Pasted, but {failed} field(s) couldn't be set");
+        _status(failed == 0 ? $"Pasted onto {Label(id).Replace(" •", "")}{(PasteKeeps.Count > 0 ? $" (kept its own {string.Join(", ", PasteKeeps.Select(Humanize))})" : "")}" : $"Pasted, but {failed} field(s) couldn't be set");
         RefreshLabel(id);
         ShowRecord();
     }

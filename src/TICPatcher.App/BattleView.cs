@@ -27,6 +27,8 @@ public sealed class BattleView : UserControl
         Units = new TableEditor(project, Battles.Units, status, navigate)
         {
             Describe = Describe,
+            // Pasting a unit onto another keeps the target's tile, or they'd all stand in one place.
+            PasteKeeps = new HashSet<string> { "X", "Y", "FacingDirection", "Elevation" },
             Actions =
             [
                 ("Random gear", "Secondary action, reaction, support, movement and all equipment: <Random>",
