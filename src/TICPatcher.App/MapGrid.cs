@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using TICPatcher.Core.Maps;
+using Sprites = TICPatcher.Core.Sprites.UnitSprite;
 
 namespace TICPatcher.App;
 
@@ -15,7 +16,7 @@ namespace TICPatcher.App;
 public sealed class MapGrid : Control
 {
     /// <summary>A unit to draw: its number in the battle (1-16), tile, level and team colour (0-3).</summary>
-    public sealed record Unit(int Number, int X, int Y, bool Upper, int Team);
+    public sealed record Unit(int Number, int X, int Y, bool Upper, int Team, IImage? Picture = null);
 
     private MapTerrain? _terrain;
     private IReadOnlyList<Unit> _units = [];
@@ -133,6 +134,18 @@ public sealed class MapGrid : Control
             };
             var number = new FormattedText(text, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, typeface, 10, Brushes.White);
+            if (first.Picture is { } picture)
+            {
+                // The unit itself, standing on its tile (a little taller than the tile), and its number below.
+                var height = Cell * 1.25;
+                var width = height * Sprites.FrameWidth / Sprites.FrameHeight;
+                using (context.PushOpacity(other ? 0.35 : 1))
+                    context.DrawImage(picture, new Rect(first.X * Cell + (Cell - width) / 2, first.Y * Cell + Cell - height, width, height));
+                var badge = new Rect(first.X * Cell + Cell - number.Width - 4, first.Y * Cell + Cell - number.Height, number.Width + 4, number.Height);
+                context.DrawRectangle(fill, new Pen(selected ? Brushes.Yellow : Brushes.White, selected ? 2 : 0.5), badge, 3, 3);
+                context.DrawText(number, new Point(badge.X + 2, badge.Y));
+                continue;
+            }
             var radius = Math.Max(Cell * 0.3, number.Width / 2 + 3);
             context.DrawEllipse(fill, new Pen(selected ? Brushes.Yellow : Brushes.White, selected ? 3 : 1), centre, radius, Math.Min(radius, Cell * 0.32));
             context.DrawText(number, new Point(centre.X - number.Width / 2, centre.Y - number.Height / 2));

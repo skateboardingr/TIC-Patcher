@@ -174,13 +174,46 @@ public sealed class BattleView : UserControl
             if (Current("SpriteSet") == "0")
                 continue; // empty slot
             units.Add(new MapGrid.Unit(slot + 1, int.Parse(Current("X")), int.Parse(Current("Y")),
-                Current("Elevation").Contains("UpperLevel"), int.Parse(Current("TeamColor"))));
+                Current("Elevation").Contains("UpperLevel"), int.Parse(Current("TeamColor")), Picture(id)));
         }
         _grid.Units = units;
         // Units the map can't show: placed by the player's formation, or off the map.
         var away = units.Where(u => _grid.Terrain is not { } t || !t.Contains(u.X, u.Y)).Select(u => u.Number).ToList();
         _away.Text = _grid.Terrain is null || away.Count == 0 ? ""
             : $"Not on the map: unit {string.Join(", ", away)} (e.g. placed by your formation, or outside the map)";
+    }
+
+    // A unit's sprite (first frame, in its palette), as the mod has it; pictures are kept per sheet and palette.
+    private readonly Dictionary<(int, int), Avalonia.Media.Imaging.Bitmap?> _pictures = [];
+
+    private Avalonia.Media.Imaging.Bitmap? Picture(int id)
+    {
+        if (_maps is null)
+            return null;
+        string Current(string field) => _project.Current(Battles.Units, id, field);
+        var job = int.Parse(Current("Job"));
+        var jobKnown = _project.HasTable(Jobs.Schema.Name) && job < Jobs.Schema.RecordCount;
+        if (Core.Sprites.UnitSprite.Of(int.Parse(Current("SpriteSet")), Current("Flags1").Contains("Female"), job, int.Parse(Current("Palette")),
+                jobKnown ? int.Parse(_project.Current(Jobs.Schema, job, "MPortrait")) : 0,
+                jobKnown ? int.Parse(_project.Current(Jobs.Schema, job, "MPalette")) : 0) is not { } sprite)
+            return null;
+        if (_pictures.TryGetValue(sprite, out var known))
+            return known;
+        Avalonia.Media.Imaging.Bitmap? picture = null;
+        if (_maps.Sheet(sprite.Sprite) is { } sheet)
+        {
+            var rgba = Core.Sprites.UnitSprite.FirstFrame(sheet, sprite.Palette);
+            var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new PixelSize(Core.Sprites.UnitSprite.FrameWidth, Core.Sprites.UnitSprite.FrameHeight),
+                new Vector(96, 96), Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Unpremul);
+            using (var buffer = bitmap.Lock())
+            {
+                const int Row = Core.Sprites.UnitSprite.FrameWidth * 4;
+                for (var y = 0; y < Core.Sprites.UnitSprite.FrameHeight; y++)
+                    System.Runtime.InteropServices.Marshal.Copy(rgba, y * Row, buffer.Address + y * buffer.RowBytes, Row);
+            }
+            picture = bitmap;
+        }
+        return _pictures[sprite] = picture;
     }
 
     // Clicking a tile puts the selected unit there (on the level shown).

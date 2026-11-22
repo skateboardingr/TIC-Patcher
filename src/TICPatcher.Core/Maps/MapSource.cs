@@ -43,6 +43,28 @@ public sealed class MapSource(string gameExe, GameText? text) : IDisposable
         return _cache[map] = terrain;
     }
 
+    private readonly Dictionary<int, byte[]?> _sheets = [];
+
+    /// <summary>A unit sprite sheet (see <see cref="Sprites.UnitSprite"/>), or null if there's none.</summary>
+    public byte[]? Sheet(int sprite)
+    {
+        if (_sheets.TryGetValue(sprite, out var known))
+            return known;
+        byte[]? sheet = null;
+        if (Sprites.UnitSprite.FileOf(sprite) is { } file && _archive.Find(file) is { } entry)
+        {
+            try
+            {
+                sheet = _archive.Read(entry, _codec.Value);
+            }
+            catch (Exception error) when (error is IOException or InvalidDataException)
+            {
+                sheet = null;
+            }
+        }
+        return _sheets[sprite] = sheet;
+    }
+
     public void Dispose()
     {
         if (_codec.IsValueCreated)
