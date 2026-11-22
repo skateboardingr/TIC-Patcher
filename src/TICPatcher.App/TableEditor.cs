@@ -145,10 +145,25 @@ public sealed class TableEditor : UserControl
         _building = false;
     }
 
+    /// <summary>The record shown changed (or was redrawn): its id.</summary>
+    public event Action<int>? RecordShown;
+
+    /// <summary>The record being edited, if any.</summary>
+    public int? Current => SelectedId;
+
+    /// <summary>Redraws the record being edited and its list label, e.g. after a change made elsewhere.</summary>
+    public void Refresh()
+    {
+        if (SelectedId is { } id)
+            RefreshLabel(id);
+        ShowRecord();
+    }
+
     private void ShowRecord()
     {
         if (_building || SelectedId is not { } id)
             return;
+        RecordShown?.Invoke(id);
         _building = true;
         _fields.Children.Clear();
 

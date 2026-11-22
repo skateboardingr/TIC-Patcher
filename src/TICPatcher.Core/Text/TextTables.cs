@@ -59,7 +59,23 @@ public static class TextTables
         new("Description", 8),
     ], Tables.Names.SkillSets) { Rows = 227, RowLength = 36 };
 
-    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters, SkillSets];
+    // Row N is map surface type N (3 Grassland, 14 Canal, 21 Flagstone; see Maps.MapTerrain).
+    public static readonly TextTable Terrain = new("TerrainText", "land.nxd", 4,
+    [
+        new("Name", 4),
+        new("Description", 8),
+    ], "Terrain") { Rows = 64, RowLength = 20 };
+
+    // Place names; map N's name is row 10100 + 100 * N (map.nxd), e.g. map 1 "Eagrose Castle Gate".
+    public static readonly TextTable Places = new("PlaceNames", "placename.nxd", 8,
+    [
+        new("Name", 8),
+    ], "Places") { Rows = 257, RowLength = 20 };
+
+    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters, SkillSets, Terrain, Places];
+
+    /// <summary>The place-name row for a battle map.</summary>
+    public static int PlaceOfMap(int map) => 10100 + 100 * map;
 
     public static readonly IReadOnlyDictionary<string, TextTable> ByName = List.ToDictionary(t => t.Name, StringComparer.Ordinal);
 

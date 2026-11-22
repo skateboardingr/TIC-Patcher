@@ -106,7 +106,12 @@ public sealed class MainWindow : Window
             _project is { GameText: not null } project && TextTables.ForNames(list) is { } text ? project.CurrentText(text, id, "Name") : null;
         var image = Array.IndexOf(args, "--from-image") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         var vanillaFile = Array.IndexOf(args, "--from-vanilla") is var v and >= 0 && v + 1 < args.Length ? args[v + 1] : null;
-        if (image is not null)
+        var gameFile = Array.IndexOf(args, "--from-game") is var g and >= 0 && g + 1 < args.Length ? args[g + 1] : null;
+        // Started for a test or a screenshot: the user's saved session is left alone.
+        _sessionless = image is not null || vanillaFile is not null || gameFile is not null;
+        if (gameFile is not null)
+            TryLoadExecutable(gameFile);
+        else if (image is not null)
             Load(VanillaData.FromImage(File.ReadAllBytes(image)), $"Read {image}");
         else if (vanillaFile is not null)
             Load(VanillaData.Load(vanillaFile), $"Read {vanillaFile}");
@@ -147,6 +152,7 @@ public sealed class MainWindow : Window
             }
             vanilla.Save();
             ReadGameText(exe);
+            _gameExe = exe;
             Load(vanilla, "Original values read from your installed game.", _project?.Edits);
             return true;
         }
@@ -160,11 +166,31 @@ public sealed class MainWindow : Window
     // The game's names and descriptions, from the cache or else the game's archives.
     private GameText? _gameText;
 
+    // The installed game, once found: battle maps are read from its archives.
+    private string? _gameExe;
+    private Core.Maps.MapSource? _maps;
+
+    private Core.Maps.MapSource? Maps()
+    {
+        if (!OperatingSystem.IsWindows() || (_gameExe ??= GameLocator.Find()) is not { } exe)
+            return null;
+        try
+        {
+            return _maps ??= new Core.Maps.MapSource(exe, _gameText);
+        }
+        catch (Exception error) when (error is IOException or FormatException or UnauthorizedAccessException)
+        {
+            Status($"Couldn't open the game's maps: {error.Message}");
+            return null;
+        }
+    }
+
     private void ReadGameText(string exe)
     {
         // A cache from an older TIC Patcher may lack tables mapped since; read it again then.
         _gameText ??= GameText.Load(GameText.CachePath("en"));
-        if (_gameText is not null && TextTables.List.All(t => _gameText.Tables.ContainsKey(t.Name)) || !OperatingSystem.IsWindows())
+        if (_gameText is not null && TextTables.List.All(t => _gameText.Tables.ContainsKey(t.Name)) && _gameText.MapPlaces.Count > 0
+            || !OperatingSystem.IsWindows())
             return;
         try
         {
@@ -253,7 +279,7 @@ public sealed class MainWindow : Window
         // Battles: pick a battle, then edit its units.
         if (_project.HasTable(Battles.Units.Name))
         {
-            var battles = new BattleView(_project, Status, Navigate);
+            var battles = new BattleView(_project, Status, Navigate, Maps());
             var top = new TabItem { Header = "Battles", Content = battles };
             tabs.Items.Add(top);
             _places[Battles.Units.Name] = (top, null, 0, battles.Units);
@@ -514,9 +540,11 @@ public sealed class MainWindow : Window
     }
 
     // Remembers the mod being edited, as it's edited, so closing the editor never loses work.
+    private readonly bool _sessionless;
+
     private void SaveSession()
     {
-        if (_restoring || _project is null)
+        if (_restoring || _sessionless || _project is null)
             return;
         try
         {

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using TICPatcher.Core.Maps;
 using TICPatcher.Core.Mods;
 using TICPatcher.Core.Tables;
 using TICPatcher.Core.Tables.Schemas;
@@ -8,7 +9,8 @@ namespace TICPatcher.App;
 
 /// <summary>
 /// Battles (ENTD), as FFTPatcher shows them: pick a battle, then edit its 16
-/// unit slots in an ordinary table editor.
+/// unit slots in an ordinary table editor. Above them, the battle's map from above,
+/// with every unit on its tile; click a tile to move the selected unit there.
 /// </summary>
 public sealed class BattleView : UserControl
 {
@@ -19,11 +21,25 @@ public sealed class BattleView : UserControl
     private readonly List<int> _shown = [];
     private bool _stale;
 
+    // The map panel; without the game's files (no MapSource) it explains that instead.
+    private readonly MapSource? _maps;
+    private readonly ComboBox _mapPicker = new() { MinWidth = 260, MaxDropDownHeight = 400 };
+    private readonly CheckBox _upper = new() { Content = "Upper level", Margin = new Thickness(12, 0, 0, 0) };
+    private readonly TextBlock _mapNote = new() { Opacity = 0.7, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+    private readonly MapGrid _grid;
+    private readonly TextBlock _away = new() { Opacity = 0.7, Margin = new Thickness(8, 0, 8, 4) };
+    private readonly Dictionary<int, int> _choices = BattleMaps.LoadChoices();
+    private bool _picking;
+    private readonly Action<string> _status;
+
     public TableEditor Units { get; }
 
-    public BattleView(ModProject project, Action<string> status, Action<string, int> navigate)
+    public BattleView(ModProject project, Action<string> status, Action<string, int> navigate, MapSource? maps = null)
     {
         _project = project;
+        _status = status;
+        _maps = maps;
+        _grid = new MapGrid { TerrainName = surface => maps?.TerrainName(surface) };
         Units = new TableEditor(project, Battles.Units, status, navigate)
         {
             Describe = Describe,
@@ -43,18 +59,77 @@ public sealed class BattleView : UserControl
         left.Children.Add(_filter);
         left.Children.Add(_changedOnly);
         left.Children.Add(_battles);
+        var mapBar = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Margin = new Thickness(8, 8, 8, 4) };
+        mapBar.Children.Add(new TextBlock { Text = "Map:", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        mapBar.Children.Add(_mapPicker);
+        mapBar.Children.Add(_upper);
+        mapBar.Children.Add(_mapNote);
+        var mapPanel = new DockPanel();
+        DockPanel.SetDock(mapBar, Dock.Top);
+        mapPanel.Children.Add(mapBar);
+        DockPanel.SetDock(_away, Dock.Bottom);
+        mapPanel.Children.Add(_away);
+        mapPanel.Children.Add(new ScrollViewer
+        {
+            Content = _grid,
+            MaxHeight = 430,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Margin = new Thickness(8, 0, 8, 4),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+        });
+        var right = new DockPanel();
+        DockPanel.SetDock(mapPanel, Dock.Top);
+        right.Children.Add(mapPanel);
+        right.Children.Add(Units);
+
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
         grid.Children.Add(left);
-        Grid.SetColumn(Units, 1);
-        grid.Children.Add(Units);
+        Grid.SetColumn(right, 1);
+        grid.Children.Add(right);
         Content = grid;
+
+        if (maps is null)
+        {
+            _mapPicker.IsEnabled = false;
+            _upper.IsEnabled = false;
+            _mapNote.Text = "Maps need the installed game (Find game…).";
+        }
+        else
+            _mapPicker.ItemsSource = new[] { "(none)" }.Concat(maps.Maps.Select(m => $"{m:000}  {maps.MapName(m) ?? "(no name)"}")).ToList();
+        _mapPicker.SelectionChanged += (_, _) =>
+        {
+            if (_picking || _maps is null || CurrentBattle is not { } battle)
+                return;
+            // A map picked by hand is remembered for this battle on this PC.
+            if (_mapPicker.SelectedIndex > 0)
+                _choices[battle] = _maps.Maps[_mapPicker.SelectedIndex - 1];
+            else
+                _choices.Remove(battle);
+            BattleMaps.SaveChoices(_choices);
+            ShowMap();
+        };
+        _upper.IsCheckedChanged += (_, _) => _grid.ShowUpper = _upper.IsChecked == true;
+        _grid.TileClicked += MoveUnit;
+        Units.RecordShown += id =>
+        {
+            _grid.Selected = id % Battles.UnitsPerBattle + 1;
+            // Follow the selected unit to its level.
+            var upper = _project.Current(Battles.Units, id, "Elevation").Contains("UpperLevel");
+            if (_upper.IsChecked != upper)
+                _upper.IsChecked = upper;
+            ShowUnits();
+        };
+        _project.Changed += ShowUnits;
 
         _filter.TextChanged += (_, _) => Fill();
         _changedOnly.IsCheckedChanged += (_, _) => Fill();
         _battles.SelectionChanged += (_, _) =>
         {
             if (_battles.SelectedIndex >= 0 && _battles.SelectedIndex < _shown.Count)
+            {
                 Units.ShowRange(_shown[_battles.SelectedIndex] * Battles.UnitsPerBattle, Battles.UnitsPerBattle);
+                ShowMap();
+            }
         };
         _project.Changed += () => _stale = true;
         AttachedToVisualTree += (_, _) =>
@@ -67,6 +142,57 @@ public sealed class BattleView : UserControl
         };
         Fill();
         _battles.SelectedIndex = 0;
+    }
+
+    private int? CurrentBattle => _battles.SelectedIndex >= 0 && _battles.SelectedIndex < _shown.Count ? _shown[_battles.SelectedIndex] : null;
+
+    // The battle's map: the user's pick for it, or a guess from its name.
+    private void ShowMap()
+    {
+        if (_maps is null || CurrentBattle is not { } battle)
+            return;
+        int? map = _choices.TryGetValue(battle, out var chosen) ? chosen : _maps.Guess(Names.Get(Names.Battles, battle));
+        _picking = true;
+        _mapPicker.SelectedIndex = map is { } m && _maps.Maps.IndexOf(m) is >= 0 and var i ? i + 1 : 0;
+        _picking = false;
+        _grid.Terrain = map is { } shown ? _maps.Load(shown) : null;
+        _mapNote.Text = map is null ? "Pick the map this battle is fought on."
+            : _choices.ContainsKey(battle) ? "(your choice)"
+            : "(guessed from the battle's name; pick another if it's wrong)";
+        ShowUnits();
+    }
+
+    private void ShowUnits()
+    {
+        if (CurrentBattle is not { } battle)
+            return;
+        var units = new List<MapGrid.Unit>();
+        for (var slot = 0; slot < Battles.UnitsPerBattle; slot++)
+        {
+            var id = battle * Battles.UnitsPerBattle + slot;
+            string Current(string field) => _project.Current(Battles.Units, id, field);
+            if (Current("SpriteSet") == "0")
+                continue; // empty slot
+            units.Add(new MapGrid.Unit(slot + 1, int.Parse(Current("X")), int.Parse(Current("Y")),
+                Current("Elevation").Contains("UpperLevel"), int.Parse(Current("TeamColor"))));
+        }
+        _grid.Units = units;
+        // Units the map can't show: placed by the player's formation, or off the map.
+        var away = units.Where(u => _grid.Terrain is not { } t || !t.Contains(u.X, u.Y)).Select(u => u.Number).ToList();
+        _away.Text = _grid.Terrain is null || away.Count == 0 ? ""
+            : $"Not on the map: unit {string.Join(", ", away)} (e.g. placed by your formation, or outside the map)";
+    }
+
+    // Clicking a tile puts the selected unit there (on the level shown).
+    private void MoveUnit(int x, int y, bool upper)
+    {
+        if (Units.Current is not { } id)
+            return;
+        _project.Set(Battles.Units, id, "X", x.ToString());
+        _project.Set(Battles.Units, id, "Y", y.ToString());
+        _project.Set(Battles.Units, id, "Elevation", upper ? "UpperLevel" : "");
+        _status($"{Describe(id)} moved to X {x}, Y {y}{(upper ? " (upper level)" : "")}");
+        Units.Refresh();
     }
 
     private bool IsChanged(int battle) =>

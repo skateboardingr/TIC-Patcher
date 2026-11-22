@@ -16,6 +16,13 @@ public sealed class GameText
     /// <summary>table → id → field → text.</summary>
     public required Dictionary<string, Dictionary<int, Dictionary<string, string>>> Tables { get; init; }
 
+    /// <summary>Battle map → its place-name row (map.nxd), for <see cref="MapName"/>.</summary>
+    public Dictionary<int, int> MapPlaces { get; init; } = [];
+
+    /// <summary>A battle map's name, e.g. map 1 "Eagrose Castle Gate", map 76 "Zeklaus Desert".</summary>
+    public string? MapName(int map) =>
+        MapPlaces.TryGetValue(map, out var place) && Get(TextTables.Places, place, "Name") is { Length: > 0 } name && name != "None" ? name : null;
+
     public string? Get(TextTable table, int id, string field) =>
         Tables.TryGetValue(table.Name, out var rows) && rows.TryGetValue(id, out var fields) && fields.TryGetValue(field, out var text) ? text : null;
 
@@ -35,7 +42,16 @@ public sealed class GameText
                 continue;
             tables[table.Name] = NxdTable.Parse(archive.Read(entry, codec)).AllText(table);
         }
-        return new GameText { Language = language, Tables = tables };
+        // Which place names the battle maps have: map.nxd (not language-specific), u32 at +4 of each row.
+        var mapPlaces = new Dictionary<int, int>();
+        var common = PacArchive.Open(Path.Combine(gameFolder, "data", "enhanced", "0004.pac"));
+        if (common.Find("map.nxd") is { } mapTable)
+        {
+            var bytes = common.Read(mapTable, codec);
+            foreach (var (map, row) in NxdTable.Rows(bytes))
+                mapPlaces[map] = BitConverter.ToInt32(bytes, row + 4);
+        }
+        return new GameText { Language = language, Tables = tables, MapPlaces = mapPlaces };
     }
 
     public void Save(string? path = null)

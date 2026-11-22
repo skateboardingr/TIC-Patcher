@@ -6,10 +6,10 @@ namespace TICPatcher.Core.Archives;
 /// The game's .pac archives (data\enhanced\*.pac, data\classic\*.pac), worked
 /// out from the files themselves (docs/archives.md):
 /// <code>
-/// 0x000  "PACK", u32 header size (data starts here), u32 file count, u8[4] flags, u64 data size
+/// 0x000  "PACK", u32 header size (data starts here), u32 file count, u8[4] flags (byte 2: block count), u64 data size
 /// 0x018  archive name, 256 bytes, XOR'd with an 8-byte pattern
-/// 0x118  u64 end of the entry table, u64 names offset, u64 names length
-/// …      entries, 56 bytes each, ending at "end of the entry table"
+/// 0x118  u64 block records (0 if none), u64 names offset, u64 names length
+/// 0x400  entries, 56 bytes each (in every archive)
 /// …      block records, 24 bytes each (files packed together in one compressed block)
 /// names  NUL-terminated file names, XOR'd with the same pattern
 /// data   GDeflate streams, from "header size" on
@@ -20,6 +20,7 @@ public sealed class PacArchive
     private static readonly byte[] Key = Convert.FromHexString("E612D6549A8F4C53");
     private const int EntrySize = 56;
     private const int BlockSize = 24;
+    private const int TableAt = 0x400; // in every archive (0000-0009, all languages)
 
     public string Path { get; }
     public string Name { get; }
@@ -56,17 +57,15 @@ public sealed class PacArchive
         var headerSize = BitConverter.ToUInt32(header, 4);
         var count = BitConverter.ToInt32(header, 8);
         var name = CString(Unscramble(header.AsSpan(0x18, 0x100), 0x18), 0);
-        var entriesEnd = (int)BitConverter.ToUInt64(header, 0x118);
         var namesAt = (int)BitConverter.ToUInt64(header, 0x120);
         var namesLength = (int)BitConverter.ToUInt64(header, 0x128);
         var names = Unscramble(header.AsSpan(namesAt, namesLength), namesAt);
 
         var blocks = new Dictionary<long, PacBlock>();
         var entries = new List<PacEntry>(count);
-        var tableAt = entriesEnd - count * EntrySize;
         for (var i = 0; i < count; i++)
         {
-            var e = header.AsSpan(tableAt + i * EntrySize, EntrySize);
+            var e = header.AsSpan(TableAt + i * EntrySize, EntrySize);
             var compressedSize = BitConverter.ToUInt32(e);
             var compressed = e[4] != 0;
             var kind = e[5];

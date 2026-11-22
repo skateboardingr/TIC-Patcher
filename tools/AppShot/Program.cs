@@ -16,7 +16,9 @@ AppBuilder.Configure<App>()
     .SetupWithoutStarting();
 
 // A saved vanilla .json (which can include the battles) works too.
-var window = new MainWindow([args[0].EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "--from-vanilla" : "--from-image", args[0]]) { Width = 1200, Height = 1000 };
+// An .exe is the installed game itself (maps, battles and text are read from its files).
+var source = Path.GetExtension(args[0]).ToLowerInvariant() switch { ".json" => "--from-vanilla", ".exe" => "--from-game", _ => "--from-image" };
+var window = new MainWindow([source, args[0]]) { Width = 1200, Height = 1000 };
 window.Show();
 Directory.CreateDirectory(args[1]);
 var shotNumber = 0;

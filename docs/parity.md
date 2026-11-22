@@ -28,7 +28,7 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | Errands (Propositions) | ◐ | the 96 errands ✓; the bonus and price tables after them still to add |
 | Poaching | ✗ | not in the executable: data-file stage |
 | Move-Find Items | ✗ | not in the executable: data-file stage |
-| ENTD (battles and their units) | ◐ | editing ✓ (Battles tab; TIC's battle files in data\enhanced\0002.pac are the PSX ENTD1-4 byte for byte); applying in game still to come |
+| ENTD (battles and their units) | ✓ | Battles tab, applied in game by TIC Loader and Inject (TIC's battle files in data\enhanced\0002.pac are the PSX ENTD1-4 byte for byte). Plus a map view: the battle's map from above with every unit on its tile (click to move). Story battles TIC overrides (overrideentrydata.nxd) still to come |
 
 ## Editor features
 

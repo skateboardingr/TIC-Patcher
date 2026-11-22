@@ -297,6 +297,63 @@ if (args.Length >= 3 && args[0] == "--peek" && OperatingSystem.IsWindows())
 
 // TICScan --find <text> [--nxd]: where the running game holds some text (read-only),
 // and with --nxd every NXDF table header with the first name in it.
+// TICScan --maps <FFT_enhanced.exe> <out.json>: every battle map's name, size and tiles (research).
+if (args.Length >= 3 && args[0] == "--maps" && OperatingSystem.IsWindows())
+{
+    var gameFolder = Path.GetDirectoryName(Path.GetFullPath(args[1]))!;
+    var archive = TICPatcher.Core.Archives.PacArchive.Open(Path.Combine(gameFolder, "data", "enhanced", "0002.pac"));
+    using var codec = new TICPatcher.Core.Archives.GDeflate(gameFolder);
+    var text = TICPatcher.Core.Text.GameText.FromGame(args[1]);
+    var maps = new List<object>();
+    foreach (var map in TICPatcher.Core.Maps.MapTerrain.MapsIn(archive))
+    {
+        try
+        {
+            var terrain = TICPatcher.Core.Maps.MapTerrain.Read(archive, codec, map);
+            maps.Add(new
+            {
+                map,
+                name = text.Get(TICPatcher.Core.Text.TextTables.Places, TICPatcher.Core.Text.TextTables.PlaceOfMap(map), "Name"),
+                terrain.Width,
+                terrain.Length,
+                lower = terrain.Lower.Select(t => new[] { t.Surface, t.Height, t.Depth, t.SlopeHeight, t.SlopeType }),
+                upper = terrain.Upper.Select(t => new[] { t.Surface, t.Height, t.Depth, t.SlopeHeight, t.SlopeType }),
+            });
+        }
+        catch (Exception error) when (error is FormatException or FileNotFoundException)
+        {
+            Console.WriteLine($"map {map}: {error.Message}");
+        }
+    }
+    File.WriteAllText(args[2], System.Text.Json.JsonSerializer.Serialize(maps));
+    Console.WriteLine($"{maps.Count} maps to {args[2]}");
+    return 0;
+}
+
+// TICScan --pac-grep <archive.pac> <text>: which files in an archive contain some text (UTF-8).
+if (args.Length >= 3 && args[0] == "--pac-grep" && OperatingSystem.IsWindows())
+{
+    var archive = TICPatcher.Core.Archives.PacArchive.Open(args[1]);
+    var gameFolder = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(args[1]))))!;
+    using var codec = new TICPatcher.Core.Archives.GDeflate(gameFolder);
+    var needle = System.Text.Encoding.UTF8.GetBytes(args[2]);
+    foreach (var entry in archive.Entries)
+    {
+        try
+        {
+            var bytes = archive.Read(entry, codec);
+            var at = bytes.AsSpan().IndexOf(needle);
+            if (at >= 0)
+                Console.WriteLine($"  {entry.Name} at 0x{at:X}");
+        }
+        catch (Exception error) when (error is InvalidDataException or IOException or System.Runtime.InteropServices.COMException)
+        {
+            Console.WriteLine($"  {entry.Name}: couldn't read ({error.Message})");
+        }
+    }
+    return 0;
+}
+
 // TICScan --battles: where the running game holds its battles (as TIC Loader finds them), read-only.
 if (args.Length >= 1 && args[0] == "--battles" && OperatingSystem.IsWindows())
 {

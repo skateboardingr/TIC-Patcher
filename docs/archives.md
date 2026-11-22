@@ -10,8 +10,8 @@ Worked out from the game's own files (2026-11-19). Nothing here comes from other
 0x000  "PACK", u32 header size (the data starts here), u32 file count, u8[4] flags, u64 data size
 0x018  archive name, 256 bytes, XOR'd with the repeating pattern E6 12 D6 54 9A 8F 4C 53
        (aligned to the file offset)
-0x118  u64 end of the entry table, u64 names offset, u64 names length
-…      entries, 56 bytes each, ending at "end of the entry table":
+0x118  u64 block records (0 if there are none), u64 names offset, u64 names length
+0x400  entries, 56 bytes each (at 0x400 in every archive):
          u32 compressed size, u8 compressed, u8 kind, u16 0, u64 size, u64 offset,
          u64 block record (0 if none), u64 name offset, u64 hash, u64 …
 …      block records, 24 bytes each: u64 offset, u32 compressed size, u32 size, u32 0, u16 index, u16 file count
