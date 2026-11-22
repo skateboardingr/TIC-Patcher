@@ -57,6 +57,27 @@ public sealed class VanillaData
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public void AddBattles(string gameExe) => Tables[Battles.Units.Name] = ReadBattles(gameExe);
 
+    /// <summary>
+    /// Adds the unit sprite palettes (<see cref="SpriteSheets.Palettes"/>): the first 0x200 bytes
+    /// of each battle sprite sheet in the installed game's data\enhanced\0002.pac (read-only).
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public void AddSpritePalettes(string gameExe)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(gameExe))!;
+        var archive = Archives.PacArchive.Open(Path.Combine(folder, "data", "enhanced", "0002.pac"));
+        using var codec = new Archives.GDeflate(folder);
+        var files = Enumerable.Range(1, SpriteSheets.Count)
+            .Select(id => (Id: id, Entry: Sprites.UnitSprite.FileOf(id) is { } name ? archive.Find(name) : null))
+            .ToList();
+        var sheets = archive.ReadMany(files.Where(f => f.Entry is not null).Select(f => f.Entry!), codec);
+        var bytes = new byte[SpriteSheets.Palettes.Length];
+        foreach (var (id, entry) in files)
+            if (entry is not null && sheets[entry].Length >= 0x200)
+                sheets[entry].AsSpan(0, 0x200).CopyTo(bytes.AsSpan((id - 1) * 0x200));
+        Tables[SpriteSheets.Palettes.Name] = bytes;
+    }
+
     /// <summary>The original battles, from the installed game's data\enhanced\0002.pac.</summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public static byte[] ReadBattles(string gameExe)

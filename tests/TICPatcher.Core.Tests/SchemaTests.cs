@@ -27,8 +27,8 @@ public class SchemaTests
     public void EveryKnownTableHasALocationAndViceVersa()
     {
         var build = GameBuilds.Known[0];
-        // Battles come from the game's data files, not the executable.
-        Assert.Equal(AllTables.ByName.Keys.Where(t => t != Battles.Units.Name).Order(), build.Tables.Keys.Order());
+        // Battles and sprite palettes come from the game's data files, not the executable.
+        Assert.Equal(AllTables.List.Where(t => t.InExecutable).Select(t => t.Name).Order(), build.Tables.Keys.Order());
     }
 
     [Fact]

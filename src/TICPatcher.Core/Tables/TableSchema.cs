@@ -82,6 +82,9 @@ public sealed record TableSchema(string Name, int RecordSize, int RecordCount, I
 {
     public int FirstId { get; init; }
 
+    /// <summary>False for tables read from the game's data files (battles, sprite palettes), not its executable.</summary>
+    public bool InExecutable { get; init; } = true;
+
     /// <summary>The <see cref="Names"/> list naming this table's records, if any.</summary>
     public string? RecordNames { get; init; }
 

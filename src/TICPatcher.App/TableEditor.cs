@@ -103,6 +103,13 @@ public sealed class TableEditor : UserControl
     /// <summary>Extra buttons beside Copy and Paste that set several fields at once (e.g. a battle unit's gear to random).</summary>
     public IReadOnlyList<(string Label, string Tip, IReadOnlyList<(string Field, string Value)> Values)> Actions { get; init; } = [];
 
+    /// <summary>A picture of the record shown under its name (e.g. a battle unit's sprite), redrawn as fields change.</summary>
+    public Func<int, Control?>? Preview { get; init; }
+
+    private readonly ContentControl _preview = new();
+
+    private void RefreshPreview(int id) => _preview.Content = Preview?.Invoke(id);
+
     /// <summary>Fields Paste leaves as they are on the record pasted onto (e.g. a battle unit's tile).</summary>
     public IReadOnlySet<string> PasteKeeps { get; init; } = new HashSet<string>();
 
@@ -212,6 +219,11 @@ public sealed class TableEditor : UserControl
             VerticalAlignment = VerticalAlignment.Center,
         });
         _fields.Children.Add(header);
+        if (Preview is not null)
+        {
+            RefreshPreview(id);
+            _fields.Children.Add(_preview);
+        }
         // The same thing in other tables, e.g. an item's weapon data and shop list.
         var related = AllTables.Related(_schema, id).Where(t => _project.HasTable(t.Name)).ToList();
         if (related.Count > 0)
@@ -487,6 +499,7 @@ public sealed class TableEditor : UserControl
             if (_revert is not null)
                 _revert.IsEnabled = _project.IsChanged(_schema, id);
             RefreshLabel(id);
+            RefreshPreview(id);
         };
         return number;
     }

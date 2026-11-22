@@ -16,6 +16,7 @@ public static class AllTables
         Statuses.Attributes, Statuses.Inflict,
         Errands.Schema,
         Battles.Units,
+        SpriteSheets.Palettes,
     ];
 
     public static readonly IReadOnlyDictionary<string, TableSchema> ByName =

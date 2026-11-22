@@ -143,6 +143,7 @@ public sealed class MainWindow : Window
                 try
                 {
                     vanilla.AddBattles(exe);
+                    vanilla.AddSpritePalettes(exe);
                 }
                 catch (Exception error) when (error is IOException or FormatException or InvalidOperationException
                     or System.Runtime.InteropServices.COMException or DllNotFoundException or EntryPointNotFoundException)
@@ -165,6 +166,37 @@ public sealed class MainWindow : Window
 
     // The game's names and descriptions, from the cache or else the game's archives.
     private GameText? _gameText;
+
+    // Pictures next to fields that pick a sprite (jobs here; battle units in BattleView).
+    private Func<int, Control?>? PreviewFor(TableSchema table)
+    {
+        if (table != Jobs.Schema || _project is null || Maps() is not { } maps)
+            return null;
+        var pictures = new SpritePictures(_project, maps);
+        return job =>
+        {
+            var portrait = int.Parse(_project.Current(Jobs.Schema, job, "MPortrait"));
+            var palette = int.Parse(_project.Current(Jobs.Schema, job, "MPalette"));
+            // Monsters: their own sprite and palette; human jobs: the male and female sprites.
+            var sprites = portrait > 0
+                ? new[] { (Core.Sprites.UnitSprite.Of(0x82, false, job, 0, portrait, palette), "") }
+                : new[]
+                {
+                    (Core.Sprites.UnitSprite.Of(0x80, false, job, 0, 0, 0), "male"),
+                    (Core.Sprites.UnitSprite.Of(0x81, true, job, 0, 0, 0), "female"),
+                };
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var (sprite, label) in sprites.Where(s => s.Item1 is not null).DistinctBy(s => s.Item1))
+            {
+                var (id, pal) = sprite!.Value;
+                var one = new StackPanel { Spacing = 2 };
+                one.Children.Add(SpritePictures.Show(pictures.Frame(id, pal), 3));
+                one.Children.Add(new TextBlock { Text = label.Length > 0 ? $"{label}: sprite {id:X2}" : SpritePictures.Caption(id, pal), Opacity = 0.75, FontSize = 12 });
+                panel.Children.Add(one);
+            }
+            return panel.Children.Count > 0 ? panel : null;
+        };
+    }
 
     // The installed game, once found: battle maps are read from its archives.
     private string? _gameExe;
@@ -246,7 +278,7 @@ public sealed class MainWindow : Window
             var available = tables.Where(t => _project.HasTable(t.Name)).ToArray();
             if (available.Length == 0)
                 continue;
-            var editors = available.Select(t => new TableEditor(_project, t, Status, Navigate)).ToArray();
+            var editors = available.Select(t => new TableEditor(_project, t, Status, Navigate) { Preview = PreviewFor(t) }).ToArray();
             var top = new TabItem { Header = tab };
             if (tab == "Shops" && editors.Length == 1)
             {
@@ -284,6 +316,9 @@ public sealed class MainWindow : Window
             tabs.Items.Add(top);
             _places[Battles.Units.Name] = (top, null, 0, battles.Units);
         }
+        // Sprites: palettes to view and recolour.
+        if (_project.HasTable(Core.Tables.Schemas.SpriteSheets.Palettes.Name) && Maps() is { } spriteMaps)
+            tabs.Items.Add(new TabItem { Header = "Sprites", Content = new SpritesView(_project, new SpritePictures(_project, spriteMaps), Status) });
         // Unit names have no stat table of their own.
         if (_project.GameText?.Tables.ContainsKey(TextTables.Characters.Name) == true)
             tabs.Items.Add(new TabItem { Header = "Characters", Content = new TextView(_project, TextTables.Characters, Status) });

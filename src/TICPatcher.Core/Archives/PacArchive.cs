@@ -111,6 +111,28 @@ public sealed class PacArchive
         return bytes;
     }
 
+    /// <summary>Several files, decompressing each shared block only once.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public Dictionary<PacEntry, byte[]> ReadMany(IEnumerable<PacEntry> entries, GDeflate codec)
+    {
+        var result = new Dictionary<PacEntry, byte[]>();
+        using var file = File.OpenRead(Path);
+        foreach (var group in entries.Distinct().GroupBy(e => e.Block))
+        {
+            if (group.Key == 0)
+            {
+                foreach (var entry in group)
+                    result[entry] = Read(entry, codec);
+                continue;
+            }
+            var block = _blocks[group.Key];
+            var unpacked = codec.Decompress(ReadAt(file, block.Offset, (int)block.CompressedSize), (int)block.Size);
+            foreach (var entry in group)
+                result[entry] = unpacked.AsSpan((int)entry.Offset, (int)entry.Size).ToArray();
+        }
+        return result;
+    }
+
     private static byte[] ReadAt(FileStream file, long offset, int length)
     {
         var bytes = new byte[length];

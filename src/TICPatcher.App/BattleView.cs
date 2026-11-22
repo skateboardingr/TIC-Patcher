@@ -31,6 +31,7 @@ public sealed class BattleView : UserControl
     private readonly Dictionary<int, int> _choices = BattleMaps.LoadChoices();
     private bool _picking;
     private readonly Action<string> _status;
+    private readonly SpritePictures? _sprites;
 
     public TableEditor Units { get; }
 
@@ -40,9 +41,11 @@ public sealed class BattleView : UserControl
         _status = status;
         _maps = maps;
         _grid = new MapGrid { TerrainName = surface => maps?.TerrainName(surface) };
+        _sprites = maps is null ? null : new SpritePictures(project, maps);
         Units = new TableEditor(project, Battles.Units, status, navigate)
         {
             Describe = Describe,
+            Preview = Preview,
             // Pasting a unit onto another keeps the target's tile, or they'd all stand in one place.
             PasteKeeps = new HashSet<string> { "X", "Y", "FacingDirection", "Elevation" },
             Actions =
@@ -183,37 +186,24 @@ public sealed class BattleView : UserControl
             : $"Not on the map: unit {string.Join(", ", away)} (e.g. placed by your formation, or outside the map)";
     }
 
-    // A unit's sprite (first frame, in its palette), as the mod has it; pictures are kept per sheet and palette.
-    private readonly Dictionary<(int, int), Avalonia.Media.Imaging.Bitmap?> _pictures = [];
+    // A unit's sprite (first frame, in its palette and the mod's colours).
+    private Avalonia.Media.Imaging.Bitmap? Picture(int id) =>
+        _sprites?.OfUnit(id) is { } sprite ? _sprites.Frame(sprite.Sprite, sprite.Palette) : null;
 
-    private Avalonia.Media.Imaging.Bitmap? Picture(int id)
+    // The unit being edited, enlarged, with which sprite and palette it is.
+    private Control? Preview(int id)
     {
-        if (_maps is null)
+        if (_sprites?.OfUnit(id) is not { } sprite)
             return null;
-        string Current(string field) => _project.Current(Battles.Units, id, field);
-        var job = int.Parse(Current("Job"));
-        var jobKnown = _project.HasTable(Jobs.Schema.Name) && job < Jobs.Schema.RecordCount;
-        if (Core.Sprites.UnitSprite.Of(int.Parse(Current("SpriteSet")), Current("Flags1").Contains("Female"), job, int.Parse(Current("Palette")),
-                jobKnown ? int.Parse(_project.Current(Jobs.Schema, job, "MPortrait")) : 0,
-                jobKnown ? int.Parse(_project.Current(Jobs.Schema, job, "MPalette")) : 0) is not { } sprite)
-            return null;
-        if (_pictures.TryGetValue(sprite, out var known))
-            return known;
-        Avalonia.Media.Imaging.Bitmap? picture = null;
-        if (_maps.Sheet(sprite.Sprite) is { } sheet)
+        var panel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 8) };
+        panel.Children.Add(SpritePictures.Show(_sprites.Frame(sprite.Sprite, sprite.Palette), 3));
+        panel.Children.Add(new TextBlock
         {
-            var rgba = Core.Sprites.UnitSprite.FirstFrame(sheet, sprite.Palette);
-            var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new PixelSize(Core.Sprites.UnitSprite.FrameWidth, Core.Sprites.UnitSprite.FrameHeight),
-                new Vector(96, 96), Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Unpremul);
-            using (var buffer = bitmap.Lock())
-            {
-                const int Row = Core.Sprites.UnitSprite.FrameWidth * 4;
-                for (var y = 0; y < Core.Sprites.UnitSprite.FrameHeight; y++)
-                    System.Runtime.InteropServices.Marshal.Copy(rgba, y * Row, buffer.Address + y * buffer.RowBytes, Row);
-            }
-            picture = bitmap;
-        }
-        return _pictures[sprite] = picture;
+            Text = SpritePictures.Caption(sprite.Sprite, sprite.Palette),
+            Opacity = 0.75,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        });
+        return panel;
     }
 
     // Clicking a tile puts the selected unit there (on the level shown).

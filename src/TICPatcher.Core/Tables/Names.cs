@@ -35,6 +35,7 @@ public static class Names
     public const string PrerequisiteJobs = "PrerequisiteJobs";
     public const string Facing = "Facing";
     public const string TeamColors = "TeamColors";
+    public const string SpriteFiles = "SpriteFiles";
 
     /// <summary>Not a fixed list: the editor names each entry from the mod's current InflictStatuses table.</summary>
     public const string InflictStatuses = "InflictStatuses";

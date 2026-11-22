@@ -26,6 +26,8 @@ XML_LISTS = {
     "Battles": ("PSP/EventNames.xml", "Event", "value", 16, "name"),
     "SpriteSets": ("PSP/SpriteSets.xml", "Sprite", "byte", 16, "name"),
     "SpecialNames": ("PSP/SpecialNames.xml", "SpecialName", "byte", 16, "name"),
+    # Battle sprite sheets by sprite id (the sprite editor's list).
+    "SpriteFiles": ("PSP/SpriteFiles.xml", "s", "n", 16, None),
 }
 
 # name: list to fill gaps from (entries missing or "None" in the main list). FFTPatcher's PSP

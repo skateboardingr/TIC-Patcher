@@ -70,30 +70,51 @@ public static class UnitSprite
         }
     }
 
-    /// <summary>A sheet's first frame (32 x 40) in one of its palettes, as RGBA bytes (colour 0 see-through).</summary>
-    public static byte[] FirstFrame(byte[] sheet, int palette)
+    /// <summary>A palette's 16 colours as stored in a sheet (or a mod's palette table).</summary>
+    public static ushort[] PaletteOf(byte[] sheet, int palette)
     {
-        const int Width = 32, Height = 40;
         palette = Math.Clamp(palette, 0, 15);
-        var rgba = new byte[Width * Height * 4];
-        for (var y = 0; y < Height; y++)
-            for (var x = 0; x < Width; x++)
+        return Enumerable.Range(0, 16).Select(i => sheet.Length >= palette * 32 + i * 2 + 2 ? BitConverter.ToUInt16(sheet, palette * 32 + i * 2) : (ushort)0).ToArray();
+    }
+
+    /// <summary>A colour as red, green and blue (0-255).</summary>
+    public static (byte R, byte G, byte B) Rgb(ushort colour) =>
+        ((byte)((colour & 31) * 255 / 31), (byte)(((colour >> 5) & 31) * 255 / 31), (byte)(((colour >> 10) & 31) * 255 / 31));
+
+    /// <summary>
+    /// Part of a sheet's stored (uncompressed) area in the given colours, as RGBA bytes,
+    /// colour 0 see-through; rows beyond the stored area come out empty.
+    /// </summary>
+    public static byte[] Render(byte[] sheet, IReadOnlyList<ushort> colours, int left, int top, int width, int height)
+    {
+        var rgba = new byte[width * height * 4];
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
             {
-                var at = 0x200 + (y * 256 + x) / 2;
-                if (at >= sheet.Length)
+                var at = 0x200 + ((top + y) * 256 + left + x) / 2;
+                if (at >= sheet.Length || top + y >= StoredRows)
                     continue;
-                var index = x % 2 == 0 ? sheet[at] & 0x0F : sheet[at] >> 4;
+                var index = (left + x) % 2 == 0 ? sheet[at] & 0x0F : sheet[at] >> 4;
                 if (index == 0)
                     continue;
-                var colour = BitConverter.ToUInt16(sheet, palette * 32 + index * 2);
-                var o = (y * Width + x) * 4;
-                rgba[o] = (byte)((colour & 31) * 255 / 31);
-                rgba[o + 1] = (byte)(((colour >> 5) & 31) * 255 / 31);
-                rgba[o + 2] = (byte)(((colour >> 10) & 31) * 255 / 31);
+                var (r, g, b) = Rgb(colours[index]);
+                var o = (y * width + x) * 4;
+                rgba[o] = r;
+                rgba[o + 1] = g;
+                rgba[o + 2] = b;
                 rgba[o + 3] = 255;
             }
         return rgba;
     }
+
+    /// <summary>A sheet's first frame (standing) in some colours, as RGBA bytes.</summary>
+    public static byte[] FirstFrame(byte[] sheet, IReadOnlyList<ushort> colours) => Render(sheet, colours, 0, 0, FrameWidth, FrameHeight);
+
+    /// <summary>A sheet's first frame in one of its own palettes.</summary>
+    public static byte[] FirstFrame(byte[] sheet, int palette) => FirstFrame(sheet, PaletteOf(sheet, palette));
+
+    /// <summary>Rows stored uncompressed at the top of every sheet.</summary>
+    public const int StoredRows = 256;
 
     public const int FrameWidth = 32;
     public const int FrameHeight = 40;

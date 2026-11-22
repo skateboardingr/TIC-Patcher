@@ -83,6 +83,7 @@ public static class Battles
         ],
         Source: "FFTPatcher Datatypes/ENTD/EventUnit.cs")
     {
+        InExecutable = false,
         RecordName = id => $"{Names.Get(Names.Battles, id / UnitsPerBattle) ?? $"Battle {id / UnitsPerBattle:X3}"}, unit {id % UnitsPerBattle + 1}",
     };
 }
