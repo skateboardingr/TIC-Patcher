@@ -18,7 +18,7 @@ namespace TICPatcher.Loader;
 /// <see cref="ITICLoader"/> (docs/bridge.md).
 /// </summary>
 [SupportedOSPlatform("windows")]
-public class Startup : IMod
+public unsafe class Startup : IMod
 {
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(2);
 
@@ -36,6 +36,47 @@ public class Startup : IMod
         _api = new LoaderApi(_collector);
         _modLoader.AddOrReplaceController<ITICLoader>(this, _api);
         _modLoader.OnModLoaderInitialized += OnAllModsLoaded;
+        WatchDecompression();
+    }
+
+    // Data files (battles, later sprites) are edited as the game unpacks them: the decompressor
+    // is wrapped as early as possible, before the game loads anything.
+    private void WatchDecompression()
+    {
+        try
+        {
+            DecompressHook.Install(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!);
+        }
+        catch (Exception error)
+        {
+            Log("couldn't watch the game's unpacking (battles will be edited in memory later instead): " + error);
+        }
+    }
+
+    // The battles: every piece the game unpacks that holds part of the battle files gets the mods'
+    // units before the game sees it, so every copy the game makes of them has the edits.
+    private void PatchBattlesOnLoad(TableEdits edits)
+    {
+        if (!DecompressHook.Installed || !edits.ChangedTables.Contains(Battles.Units.Name))
+            return;
+        try
+        {
+            var original = VanillaData.ReadBattles(Process.GetCurrentProcess().MainModule!.FileName);
+            var patcher = new LoadPatcher(original, BattleMemory.Wanted(original, edits), Battles.Units.RecordSize);
+            if (!patcher.HasChanges)
+                return;
+            DecompressHook.Output = (address, size) =>
+            {
+                var replaced = patcher.Patch(new Span<byte>((void*)address, size));
+                if (replaced > 0)
+                    Log($"Battles: {replaced} unit record(s) changed as the game unpacked them (0x{address:X})");
+            };
+            Log("Battles: will be changed as the game unpacks them");
+        }
+        catch (Exception error)
+        {
+            Log("Battles: couldn't prepare changing them on load (they'll be changed in memory instead): " + error.Message);
+        }
     }
 
     private void OnAllModsLoaded()
@@ -53,6 +94,7 @@ public class Startup : IMod
         }
         if (edits.IsEmpty)
             Log("no enabled mod has table edits");
+        PatchBattlesOnLoad(edits);
         if (edits.IsEmpty && watch is null)
             return;
         // The game may still be unpacking its data; don't hold up startup.

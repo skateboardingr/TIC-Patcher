@@ -34,6 +34,14 @@ public sealed unsafe class GDeflate : IDisposable
 
     private void** VTable => *(void***)_codec;
 
+    /// <summary>
+    /// The codec's function table (shared by every GDeflate codec in the process, the game's
+    /// too): TIC Loader wraps its decompress entry (slot 4) to see what the game decompresses.
+    /// </summary>
+    public IntPtr FunctionTable => (IntPtr)VTable;
+
+    public const int DecompressSlot = 4;
+
     public byte[] Decompress(ReadOnlySpan<byte> compressed, int size)
     {
         var output = new byte[size];

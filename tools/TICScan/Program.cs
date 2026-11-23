@@ -354,6 +354,69 @@ if (args.Length >= 3 && args[0] == "--pac-grep" && OperatingSystem.IsWindows())
     return 0;
 }
 
+// TICScan --active-battle <battle hex> [battles to look for, hex, e.g. 100-10F 180]: which battles' units the running game has copied out of its
+// battle block (e.g. for the scene on screen), and whether one battle in the block holds edits. Read-only.
+if (args.Length >= 1 && args[0] == "--active-battle" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var original = TICPatcher.Core.Mods.VanillaData.ReadBattles(game.MainModule!.FileName);
+    var block = TICPatcher.Core.Mods.BattleMemory.Find(memory, original, why: reason => Console.WriteLine($"battle block not found: {reason}"));
+    if (block is { } b)
+        Console.WriteLine($"battle block at 0x{b:X}");
+    byte[]? current = block is { } at ? memory.Read(at, original.Length) : null;
+    if (current is not null && args.Length > 1)
+    {
+        var battle = Convert.ToInt32(args[1], 16);
+        var changed = Enumerable.Range(0, 16).Where(u => !current.AsSpan(battle * 640 + u * 40, 40).SequenceEqual(original.AsSpan(battle * 640 + u * 40, 40))).ToList();
+        Console.WriteLine($"battle {battle:X3} in the block: {(changed.Count == 0 ? "original" : $"units {string.Join(", ", changed.Select(u => u + 1))} changed")}");
+    }
+    // Distinctive unit records (non-empty, appearing once in all battles), searched outside the block.
+    var records = new Dictionary<string, (int Battle, int Unit)>();
+    var seen = new Dictionary<string, int>();
+    var source = current ?? original;
+    for (var r = 0; r < source.Length / 40; r++)
+    {
+        var record = source.AsSpan(r * 40, 40);
+        if (record[0] == 0)
+            continue;
+        var key = Convert.ToHexString(record);
+        seen[key] = seen.GetValueOrDefault(key) + 1;
+        records[key] = (r / 16, r % 16);
+    }
+    // Only the battles asked about (each "A" or "A-B"), or the edited one: searching for all is far too slow.
+    var wanted = new HashSet<int>();
+    foreach (var range in args.Skip(2).DefaultIfEmpty(args.Length > 1 ? args[1] : "0"))
+    {
+        var ends = range.Split('-').Select(x => Convert.ToInt32(x, 16)).ToArray();
+        for (var x = ends[0]; x <= ends[^1]; x++)
+            wanted.Add(x);
+    }
+    var probes = records.Where(r => seen[r.Key] == 1 && wanted.Contains(r.Value.Battle))
+        .Select(r => (Bytes: Convert.FromHexString(r.Key), r.Value.Battle, r.Value.Unit)).ToList();
+    Console.WriteLine($"looking for {probes.Count} unit record(s) of {wanted.Count} battle(s)");
+    var hits = new Dictionary<int, HashSet<int>>();
+    foreach (var (start, bytes) in memory.ContiguousBlocks(0, long.MaxValue, privateOnly: true))
+        foreach (var (probe, battle, unit) in probes)
+        {
+            for (var i = bytes.AsSpan().IndexOf(probe); i >= 0;)
+            {
+                var address = start + i;
+                if (block is not { } blk || address < blk || address >= blk + original.Length)
+                    (hits.TryGetValue(battle, out var units) ? units : hits[battle] = []).Add(unit + 1);
+                var next = bytes.AsSpan(i + 1).IndexOf(probe);
+                i = next < 0 ? -1 : i + 1 + next;
+            }
+        }
+    foreach (var (battle, units) in hits.OrderByDescending(h => h.Value.Count).Take(10))
+        Console.WriteLine($"  battle {battle:X3}: {units.Count} unit record(s) copied elsewhere (units {string.Join(", ", units.Order())})");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
 // TICScan --battles: where the running game holds its battles (as TIC Loader finds them), read-only.
 if (args.Length >= 1 && args[0] == "--battles" && OperatingSystem.IsWindows())
 {
