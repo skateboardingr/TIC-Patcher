@@ -55,13 +55,17 @@ public unsafe class Startup : IMod
 
     // The battles: every piece the game unpacks that holds part of the battle files gets the mods'
     // units before the game sees it, so every copy the game makes of them has the edits.
+    // The original battles, read before the unpacking hook edits them (null if not read yet).
+    private byte[]? _originalBattles;
+
     private void PatchBattlesOnLoad(TableEdits edits)
     {
         if (!DecompressHook.Installed || !edits.ChangedTables.Contains(Battles.Units.Name))
             return;
         try
         {
-            var original = VanillaData.ReadBattles(Process.GetCurrentProcess().MainModule!.FileName);
+            // Read before the hook changes anything: afterwards, reading them goes through it too.
+            var original = _originalBattles = VanillaData.ReadBattles(Process.GetCurrentProcess().MainModule!.FileName);
             var patcher = new LoadPatcher(original, BattleMemory.Wanted(original, edits), Battles.Units.RecordSize);
             if (!patcher.HasChanges)
                 return;
@@ -207,7 +211,8 @@ public unsafe class Startup : IMod
     {
         try
         {
-            var original = VanillaData.ReadBattles(gameExe);
+            // Not read again once the unpacking hook is on: it would hand back the edited battles.
+            var original = _originalBattles ?? VanillaData.ReadBattles(gameExe);
             var wanted = BattleMemory.Wanted(original, edits);
             Log($"Battles: {edits.All.Count(e => e.Table == Battles.Units.Name)} field(s) to apply; looking for the game's battles");
             var told = false;
