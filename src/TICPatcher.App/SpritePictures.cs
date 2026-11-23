@@ -32,8 +32,20 @@ public sealed class SpritePictures(ModProject project, MapSource maps)
     public Bitmap? Frame(int sprite, int palette) =>
         Picture(sprite, palette, 0, 0, UnitSprite.FrameWidth, UnitSprite.FrameHeight);
 
-    /// <summary>A sprite's whole stored sheet (256 x 256) in a palette.</summary>
-    public Bitmap? Sheet(int sprite, int palette) => Picture(sprite, palette, 0, 0, 256, UnitSprite.StoredRows);
+    private readonly Dictionary<int, byte[]?> _pixels = [];
+
+    /// <summary>A sprite's whole sheet (256 x 488: poses, more poses, portrait) in a palette.</summary>
+    public Bitmap? Sheet(int sprite, int palette)
+    {
+        var colours = Colours(sprite, palette);
+        var key = $"{sprite}:sheet:{string.Join(",", colours)}";
+        if (_cache.TryGetValue(key, out var known))
+            return known;
+        if (!_pixels.TryGetValue(sprite, out var pixels))
+            _pixels[sprite] = pixels = maps.Sheet(sprite) is { } sheet ? UnitSprite.Pixels(sheet) : null;
+        return _cache[key] = pixels is null ? null
+            : ToBitmap(UnitSprite.Render(pixels, 256, colours, 0, 0, 256, UnitSprite.SheetRows), 256, UnitSprite.SheetRows);
+    }
 
     private Bitmap? Picture(int sprite, int palette, int left, int top, int width, int height)
     {

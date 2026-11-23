@@ -151,7 +151,7 @@ public sealed class SpritesView : UserControl
         _right.Children.Add(pictures);
         _right.Children.Add(new TextBlock
         {
-            Text = "The sheet's first 256 rows; the rest of each sheet is stored compressed and isn't shown yet. Changed palettes are saved with the mod, but aren't applied in the game yet.",
+            Text = "The whole sheet: poses, more poses (stored compressed), and the portrait at the bottom. Changed palettes are saved with the mod, but aren't applied in the game yet.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.7,
             MaxWidth = 700,
