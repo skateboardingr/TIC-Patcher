@@ -13,6 +13,7 @@ TIC Patcher is to The Ivalice Chronicles what FFTPatcher was to the PSX and PSP 
 | FFTPatcher page | TIC Patcher | Notes |
 |---|---|---|
 | Jobs | ✓ | |
+| Job formation sprites | ✓ | party-screen sprites of the story jobs (0x00-0x49); a job left at 0 shows as Ramza |
 | Job Levels | ◐ | unlock requirements ✓; JP per level not found in the executable yet |
 | Skill Sets | ✓ | |
 | Monster Skills | ✓ | |

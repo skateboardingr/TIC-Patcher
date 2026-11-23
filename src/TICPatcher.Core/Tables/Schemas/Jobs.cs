@@ -72,4 +72,19 @@ public static class Jobs
     /// <summary>Job ids of the generic jobs, Squire (0x4A) to Mime (0x5D).</summary>
     public const int FirstGenericJob = 0x4A;
     public const int LastGenericJob = 0x5D;
+
+    /// <summary>
+    /// Formation (party screen) sprites of the special jobs 0x00-0x49, the story characters':
+    /// two tables, one byte and one 16-bit value per job. A job left at 0 in the first shows
+    /// Ramza (chapter 1) on the party screen, e.g. guest-only characters made to join.
+    /// </summary>
+    public static readonly TableSchema FormationSprites1 = new(
+        "JobFormationSprites1", RecordSize: 1, RecordCount: 0x4A,
+        Fields: [FieldDef.U8("FormationSprite", 0)],
+        Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites1); located in TIC by FFTPatcher's PSX defaults") { RecordNames = Names.Jobs };
+
+    public static readonly TableSchema FormationSprites2 = new(
+        "JobFormationSprites2", RecordSize: 2, RecordCount: 0x4A,
+        Fields: [FieldDef.U16("FormationSprite2", 0)],
+        Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites2); found byte for byte in TIC") { RecordNames = Names.Jobs };
 }

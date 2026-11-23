@@ -19,6 +19,8 @@ public static class GameBuilds
             [SkillSets.Main.Name] = 0x67E210,
             [SkillSets.Extra.Name] = 0x67E210 + 0xB0 * 25,
             [SkillSets.JobRequirements.Name] = 0x67F390,
+            [Jobs.FormationSprites1.Name] = 0x67F840,
+            [Jobs.FormationSprites2.Name] = 0x680070,
             [SkillSets.MonsterSkills.Name] = 0x67F4C0,
             [Items.ShopInventories.Name] = 0x67F890,
             [Abilities.Animations.Name] = 0x672DA0,

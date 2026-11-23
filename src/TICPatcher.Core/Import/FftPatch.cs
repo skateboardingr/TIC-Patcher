@@ -128,6 +128,8 @@ public sealed class FftPatch
         new("itemAttributes", "OldItemAttributes.bin", Items.Attributes, 0, 25, 0x50),
         new("jobs", "Jobs.bin", Jobs.Schema, 0, 49, 0xA9, Psx: (48, 0xA0)),
         new("jobLevels", "JobLevels.bin", SkillSets.JobRequirements, 0, 12, 22, Psx: (10, 19)),
+        new("jobFormationSprites1", "JobFormationSprites1.bin", Jobs.FormationSprites1, 0, 1, 0x4A),
+        new("jobFormationSprites2", "JobFormationSprites2.bin", Jobs.FormationSprites2, 0, 2, 0x4A),
         new("skillSets", "SkillSetsBin.bin", SkillSets.Main, 0, 25, 0xB0),
         new("skillSets", "SkillSetsBin.bin", SkillSets.Extra, 0xB0 * 25, 25, 3, PspOnly: true),
         new("monsterSkills", "MonsterSkills.bin", SkillSets.MonsterSkills, 0, 5, 48),
@@ -144,7 +146,8 @@ public sealed class FftPatch
     ];
 
     // Shared by both games in FFTPatcher's defaults; the rest are under PSP/bin or PSX-US/bin.
-    private static readonly HashSet<string> SharedDefaults = ["StoreInventories.bin", "Propositions.bin", "ENTD1.ENT", "ENTD2.ENT", "ENTD3.ENT", "ENTD4.ENT"];
+    private static readonly HashSet<string> SharedDefaults = ["StoreInventories.bin", "Propositions.bin", "ENTD1.ENT", "ENTD2.ENT", "ENTD3.ENT", "ENTD4.ENT",
+        "JobFormationSprites1.bin", "JobFormationSprites2.bin"];
 
     /// <summary>Patch contents TIC Patcher can't import (yet): element → (FFTPatcher's default file, why).
     /// "{bin}" is PSP/bin/ or PSX-US/bin/.</summary>
@@ -155,8 +158,6 @@ public sealed class FftPatch
         ["poaching"] = ("{bin}PoachProbabilities.bin", "poaching (not in TIC's executable)"),
         ["moveFindItems"] = ("MoveFind.bin", "move-find items (not in TIC's executable)"),
         ["entd5"] = ("PSP/bin/ENTD5.bin", "War of the Lions' extra battles (ENTD5)"),
-        ["jobFormationSprites1"] = ("JobFormationSprites1.bin", "job formation sprites"),
-        ["jobFormationSprites2"] = ("JobFormationSprites2.bin", "job formation sprites"),
     };
 
     /// <summary>
