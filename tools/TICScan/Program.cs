@@ -488,6 +488,31 @@ if (args.Length >= 1 && args[0] == "--battle-copies" && OperatingSystem.IsWindow
     return 0;
 }
 
+// TICScan --what-battles <address hex> <length hex>: which original battles (640-byte units of 16) and
+// unit records appear in a region of the running game's memory, and where. Read-only.
+if (args.Length >= 3 && args[0] == "--what-battles" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var region = new ProcessMemory(handle).Read(Convert.ToInt64(args[1], 16), Convert.ToInt32(args[2], 16));
+    var original = TICPatcher.Core.Mods.VanillaData.ReadBattles(game.MainModule!.FileName);
+    var units = new Dictionary<string, int>();
+    for (var r = 0; r < original.Length / 40; r++)
+        if (original[r * 40] != 0)
+            units.TryAdd(Convert.ToHexString(original, r * 40, 40), r);
+    var found = new List<(int At, int Record)>();
+    for (var at = 0; at + 40 <= region.Length; at++)
+        if (region[at] != 0 && units.TryGetValue(Convert.ToHexString(region, at, 40), out var record))
+            found.Add((at, record));
+    Console.WriteLine($"{found.Count} unit record(s) found");
+    foreach (var (at, record) in found.Take(60))
+        Console.WriteLine($"  +0x{at:X}: battle {record / 16:X3} unit {record % 16 + 1}");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
 // TICScan --battles: where the running game holds its battles (as TIC Loader finds them), read-only.
 if (args.Length >= 1 && args[0] == "--battles" && OperatingSystem.IsWindows())
 {
