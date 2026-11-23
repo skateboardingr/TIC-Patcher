@@ -330,6 +330,25 @@ if (args.Length >= 3 && args[0] == "--maps" && OperatingSystem.IsWindows())
     return 0;
 }
 
+// TICScan --codec-function <FFT_enhanced.exe> <out image>: where DirectStorage's GDeflate decompress
+// (the codec's function table, slot 4) lives: its DLL and offset, and that DLL's image for tools/Disasm.
+if (args.Length >= 3 && args[0] == "--codec-function" && OperatingSystem.IsWindows())
+{
+    var folder = Path.GetDirectoryName(Path.GetFullPath(args[1]))!;
+    using var codec = new TICPatcher.Core.Archives.GDeflate(folder);
+    var function = (long)System.Runtime.InteropServices.Marshal.ReadIntPtr(codec.FunctionTable, TICPatcher.Core.Archives.GDeflate.DecompressSlot * IntPtr.Size);
+    foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
+    {
+        var start = (long)module.BaseAddress;
+        if (function < start || function >= start + module.ModuleMemorySize)
+            continue;
+        Console.WriteLine($"decompress at {module.ModuleName} +0x{function - start:X} ({module.FileName})");
+        File.WriteAllBytes(args[2], TICPatcher.Core.Mods.VanillaData.ImageOf(File.ReadAllBytes(module.FileName!)));
+        Console.WriteLine($"image of {module.ModuleName} written to {args[2]}");
+    }
+    return 0;
+}
+
 // TICScan --pac-grep <archive.pac> <text>: which files in an archive contain some text (UTF-8).
 if (args.Length >= 3 && args[0] == "--pac-grep" && OperatingSystem.IsWindows())
 {
@@ -413,6 +432,58 @@ if (args.Length >= 1 && args[0] == "--active-battle" && OperatingSystem.IsWindow
         }
     foreach (var (battle, units) in hits.OrderByDescending(h => h.Value.Count).Take(10))
         Console.WriteLine($"  battle {battle:X3}: {units.Count} unit record(s) copied elsewhere (units {string.Join(", ", units.Order())})");
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --battle-copies: every copy of the battle files in the running game's memory, original or
+// edited, how much of each matches, and whether it sits inside a whole unpacked archive block. Read-only.
+if (args.Length >= 1 && args[0] == "--battle-copies" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var exe = game.MainModule!.FileName;
+    var original = TICPatcher.Core.Mods.VanillaData.ReadBattles(exe);
+    // The bytes just before the battle files in their unpacked block, to tell block copies from file copies.
+    var archive = TICPatcher.Core.Archives.PacArchive.Open(Path.Combine(Path.GetDirectoryName(exe)!, "data", "enhanced", "0002.pac"));
+    using var codec = new TICPatcher.Core.Archives.GDeflate(Path.GetDirectoryName(exe)!);
+    var first = archive.Find(TICPatcher.Core.Tables.Schemas.Battles.Files[0])!;
+    var before = archive.Read(archive.Entries.Where(e => e.Block == first.Block && e.Offset < first.Offset).OrderByDescending(e => e.Offset).First(), codec);
+    var lead = before.AsSpan(Math.Max(0, before.Length - 64)).ToArray();
+    // Battle 1's first unit marks each copy.
+    var probe = original.AsSpan(640, 40).ToArray();
+    var copies = new List<long>();
+    foreach (var (start, bytes) in memory.ContiguousBlocks(0, long.MaxValue, privateOnly: true))
+        for (var i = bytes.AsSpan().IndexOf(probe); i >= 0;)
+        {
+            copies.Add(start + i - 640);
+            var next = bytes.AsSpan(i + 1).IndexOf(probe);
+            i = next < 0 ? -1 : i + 1 + next;
+        }
+    Console.WriteLine($"{copies.Count} copies of battle 1's first unit");
+    var stats = new Dictionary<string, int>();
+    foreach (var copy in copies)
+    {
+        byte[] bytes;
+        try { bytes = memory.Read(copy, original.Length); } catch { continue; }
+        var same = 0;
+        for (var r = 0; r < original.Length / 40; r++)
+            if (bytes.AsSpan(r * 40, 40).SequenceEqual(original.AsSpan(r * 40, 40)))
+                same++;
+        var whole = same == original.Length / 40 ? "all original" : $"{original.Length / 40 - same} records differ";
+        string inBlock;
+        try { inBlock = memory.Read(copy - lead.Length, lead.Length).AsSpan().SequenceEqual(lead) ? "inside an unpacked block" : "on its own"; }
+        catch { inBlock = "start of a region"; }
+        var key = $"{whole}, {inBlock}";
+        stats[key] = stats.GetValueOrDefault(key) + 1;
+        if (stats[key] <= 2)
+            Console.WriteLine($"  0x{copy:X}: {key}");
+    }
+    foreach (var (key, count) in stats)
+        Console.WriteLine($"{count} x {key}");
     ProcessMemory.Native.CloseHandle(handle);
     return 0;
 }
