@@ -65,6 +65,28 @@ public sealed class MapSource(string gameExe, GameText? text) : IDisposable
         return _sheets[sprite] = sheet;
     }
 
+    private readonly Dictionary<string, byte[]?> _files = [];
+
+    /// <summary>Any file of the battle archive (e.g. a sprite shape), or null if it isn't there.</summary>
+    public byte[]? File(string name)
+    {
+        if (_files.TryGetValue(name, out var known))
+            return known;
+        byte[]? bytes = null;
+        if (_archive.Find(name) is { } entry)
+        {
+            try
+            {
+                bytes = _archive.Read(entry, _codec.Value);
+            }
+            catch (Exception error) when (error is IOException or InvalidDataException)
+            {
+                bytes = null;
+            }
+        }
+        return _files[name] = bytes;
+    }
+
     public void Dispose()
     {
         if (_codec.IsValueCreated)

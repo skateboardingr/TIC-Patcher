@@ -90,9 +90,12 @@ public sealed class SpritesView : UserControl
             var strip = new StackPanel { Orientation = Orientation.Horizontal };
             foreach (var colour in _pictures.Colours(sprite, palette).Skip(1))
                 strip.Children.Add(new Border { Width = 5, Height = 14, Background = Brush(colour) });
+            var title = new TextBlock { Text = $"Palette {palette}{(IsChanged(sprite, palette) ? " •" : "")}", FontSize = 11 };
+            if (palette == _palette)
+                (_strip, _stripTitle) = (strip, title);
             var button = new Button
             {
-                Content = new StackPanel { Children = { new TextBlock { Text = $"Palette {palette}{(IsChanged(sprite, palette) ? " •" : "")}", FontSize = 11 }, strip } },
+                Content = new StackPanel { Children = { title, strip } },
                 Margin = new Thickness(0, 0, 6, 6),
                 BorderBrush = palette == _palette ? Brushes.Orange : null,
                 BorderThickness = new Thickness(palette == _palette ? 2 : 0),
@@ -131,12 +134,13 @@ public sealed class SpritesView : UserControl
                 Show();
             };
             swatches.Children.Add(swatch);
+            _swatches[i] = swatch;
         }
         _right.Children.Add(swatches);
         if (_colour > 0)
             _right.Children.Add(ColourEditor(sprite, record, colours[_colour]));
 
-        var revert = new Button { Content = "Revert this palette", IsEnabled = IsChanged(sprite, _palette) };
+        var revert = _revert = new Button { Content = "Revert this palette", IsEnabled = IsChanged(sprite, _palette) };
         revert.Click += (_, _) =>
         {
             _project.Revert(SpriteSheets.Palettes, record);
@@ -146,8 +150,10 @@ public sealed class SpritesView : UserControl
 
         // The unit standing, and its whole sheet, in this palette.
         var pictures = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-        pictures.Children.Add(Framed(SpritePictures.Show(_pictures.Frame(sprite, _palette), 4)));
-        pictures.Children.Add(Framed(SpritePictures.Show(_pictures.Sheet(sprite, _palette), 2)));
+        _frame = SpritePictures.Show(_pictures.Frame(sprite, _palette), 4);
+        _sheet = SpritePictures.Show(_pictures.Sheet(sprite, _palette), 2);
+        pictures.Children.Add(Framed(_frame));
+        pictures.Children.Add(Framed(_sheet));
         _right.Children.Add(pictures);
         _right.Children.Add(new TextBlock
         {
@@ -177,17 +183,55 @@ public sealed class SpritesView : UserControl
                 var next = (ushort)((now & ~(31 << shift)) | ((int)v << shift));
                 _project.Set(SpriteSheets.Palettes, record, $"Color{_colour}", next.ToString());
                 _status($"{Names.Get(Names.SpriteFiles, sprite)} palette {_palette} colour {_colour} = {Describe(next)}");
-                // Redraw once typing settles (a redraw replaces this box).
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    if (!box.IsKeyboardFocusWithin)
-                        Refresh();
-                }, Avalonia.Threading.DispatcherPriority.Background);
+                // Updated in place: rebuilding would replace this box under the pointer or keyboard.
+                UpdateColours(sprite);
             };
-            box.LostFocus += (_, _) => Refresh();
             row.Children.Add(box);
         }
         return row;
+    }
+
+    // The parts of the view that show the selected palette's colours.
+    private readonly Border[] _swatches = new Border[16];
+    private StackPanel? _strip;
+    private TextBlock? _stripTitle;
+    private Image? _frame;
+    private Image? _sheet;
+    private Button? _revert;
+
+    private void UpdateColours(int sprite)
+    {
+        var colours = _pictures.Colours(sprite, _palette);
+        var record = sprite * 16 + _palette;
+        for (var i = 1; i < 16; i++)
+        {
+            var changed = _project.IsChanged(SpriteSheets.Palettes, record, $"Color{i}");
+            _swatches[i].Background = Brush(colours[i]);
+            _swatches[i].BorderBrush = i == _colour ? Brushes.Orange : changed ? ChangedBrush : Brushes.Gray;
+            _swatches[i].BorderThickness = new Thickness(i == _colour ? 3 : changed ? 2 : 1);
+            ToolTip.SetTip(_swatches[i], $"Colour {i}: {Describe(colours[i])}{(changed ? $"\nOriginal: {Describe(ushort.Parse(_project.Original(SpriteSheets.Palettes, record, $"Color{i}")))}" : "")}");
+            if (_strip is not null)
+                ((Border)_strip.Children[i - 1]).Background = Brush(colours[i]);
+        }
+        if (_stripTitle is not null)
+            _stripTitle.Text = $"Palette {_palette}{(IsChanged(sprite, _palette) ? " •" : "")}";
+        if (_frame is not null)
+            _frame.Source = _pictures.Frame(sprite, _palette);
+        if (_sheet is not null)
+            _sheet.Source = _pictures.Sheet(sprite, _palette);
+        if (_revert is not null)
+            _revert.IsEnabled = IsChanged(sprite, _palette);
+        RefreshLabels();
+    }
+
+    // The sprite list's labels (changed marks) without redrawing the view.
+    private void RefreshLabels()
+    {
+        var index = _sprites.SelectedIndex;
+        _building = true;
+        _sprites.ItemsSource = _shown.Select(Label).ToList();
+        _sprites.SelectedIndex = index;
+        _building = false;
     }
 
     private void Refresh()

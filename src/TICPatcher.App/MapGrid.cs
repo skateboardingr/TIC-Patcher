@@ -137,8 +137,9 @@ public sealed class MapGrid : Control
             if (first.Picture is { } picture)
             {
                 // The unit itself, standing on its tile (a little taller than the tile), and its number below.
-                var height = Cell * 1.25;
-                var width = height * Sprites.FrameWidth / Sprites.FrameHeight;
+                // Scaled so a person (about 40 pixels tall) is a little taller than a tile; big monsters are bigger.
+                var height = Cell * 1.25 * Math.Min(picture.Size.Height / 40.0, 1.8);
+                var width = height * picture.Size.Width / picture.Size.Height;
                 using (context.PushOpacity(other ? 0.35 : 1))
                     context.DrawImage(picture, new Rect(first.X * Cell + (Cell - width) / 2, first.Y * Cell + Cell - height, width, height));
                 var badge = new Rect(first.X * Cell + Cell - number.Width - 4, first.Y * Cell + Cell - number.Height, number.Width + 4, number.Height);

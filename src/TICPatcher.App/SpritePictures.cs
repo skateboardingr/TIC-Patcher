@@ -28,9 +28,28 @@ public sealed class SpritePictures(ModProject project, MapSource maps)
         return maps.Sheet(sprite) is { } sheet ? UnitSprite.PaletteOf(sheet, palette) : new ushort[16];
     }
 
-    /// <summary>A sprite's first frame (standing) in a palette.</summary>
-    public Bitmap? Frame(int sprite, int palette) =>
-        Picture(sprite, palette, 0, 0, UnitSprite.FrameWidth, UnitSprite.FrameHeight);
+    /// <summary>
+    /// A sprite standing, in a palette: assembled from its shape (so chocobos and monsters built
+    /// from parts come out whole), or the sheet's first frame if it has no known shape.
+    /// </summary>
+    public Bitmap? Frame(int sprite, int palette)
+    {
+        var colours = Colours(sprite, palette);
+        var key = $"{sprite}:standing:{string.Join(",", colours)}";
+        if (_cache.TryGetValue(key, out var known))
+            return known;
+        if (SpriteShape.FileOf(sprite) is { } file && maps.File(file) is { } shape && PixelsOf(sprite) is { } pixels
+            && SpriteShape.Frame(shape, pixels, SpriteShape.Standing) is { } picture)
+            return _cache[key] = ToBitmap(UnitSprite.Render(picture.Pixels, picture.Width, colours, 0, 0, picture.Width, picture.Height), picture.Width, picture.Height);
+        return _cache[key] = Picture(sprite, palette, 0, 0, UnitSprite.FrameWidth, UnitSprite.FrameHeight);
+    }
+
+    private byte[]? PixelsOf(int sprite)
+    {
+        if (!_pixels.TryGetValue(sprite, out var pixels))
+            _pixels[sprite] = pixels = maps.Sheet(sprite) is { } sheet ? UnitSprite.Pixels(sheet) : null;
+        return pixels;
+    }
 
     private readonly Dictionary<int, byte[]?> _pixels = [];
 
@@ -41,8 +60,7 @@ public sealed class SpritePictures(ModProject project, MapSource maps)
         var key = $"{sprite}:sheet:{string.Join(",", colours)}";
         if (_cache.TryGetValue(key, out var known))
             return known;
-        if (!_pixels.TryGetValue(sprite, out var pixels))
-            _pixels[sprite] = pixels = maps.Sheet(sprite) is { } sheet ? UnitSprite.Pixels(sheet) : null;
+        var pixels = PixelsOf(sprite);
         return _cache[key] = pixels is null ? null
             : ToBitmap(UnitSprite.Render(pixels, 256, colours, 0, 0, 256, UnitSprite.SheetRows), 256, UnitSprite.SheetRows);
     }

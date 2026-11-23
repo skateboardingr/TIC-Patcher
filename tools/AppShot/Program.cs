@@ -44,6 +44,21 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
         Console.WriteLine($"clicked {shot[6..]}");
         continue;
     }
+    // bump:N:times raises the Nth number box on the current tab by one, several times, as clicking
+    // its up arrow does (the value changes without the box taking the keyboard focus).
+    if (shot.StartsWith("bump:"))
+    {
+        var e = shot.Split(':');
+        var current = (Control)window.GetLogicalDescendants().OfType<TabControl>().First().SelectedContent!;
+        var box = current.GetLogicalDescendants().OfType<NumericUpDown>().Where(n => n.IsEffectivelyVisible).ElementAt(int.Parse(e[1]));
+        for (var i = 0; i < int.Parse(e[2]); i++)
+        {
+            box.Value += 1;
+            Pump();
+        }
+        Console.WriteLine($"bumped {e[2]}x: box shows {box.Value}, still on screen: {box.IsAttachedToVisualTree()}");
+        continue;
+    }
     // type:N:text types into the Nth number box on the current tab, key by key, as a user would.
     if (shot.StartsWith("type:"))
     {
