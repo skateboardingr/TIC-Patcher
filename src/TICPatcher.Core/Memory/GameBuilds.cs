@@ -23,6 +23,7 @@ public static class GameBuilds
             [Jobs.FormationSprites2.Name] = 0x680070,
             [Jobs.FormationSlotSprites.Name] = 0x714D50,
             [Jobs.SlotSprites.Name] = 0x7146D0,
+            [Jobs.SpriteFormationSlots.Name] = 0x6829F0,
             [SkillSets.MonsterSkills.Name] = 0x67F4C0,
             [Items.ShopInventories.Name] = 0x67F890,
             [Abilities.Animations.Name] = 0x672DA0,

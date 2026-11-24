@@ -513,7 +513,7 @@ if (args.Length >= 3 && args[0] == "--what-battles" && OperatingSystem.IsWindows
     return 0;
 }
 
-// TICScan --threads: where each of the running game's threads is (for a hang): CPU time, state, the code
+// TICScan --threads [count]: where each of the running game's threads is (for a hang): CPU time, state, the code
 // it's in (module + offset) and game-code return addresses on its stack. Each thread is paused only while
 // its registers are read.
 if (args.Length >= 1 && args[0] == "--threads" && OperatingSystem.IsWindows())
@@ -527,7 +527,7 @@ if (args.Length >= 1 && args[0] == "--threads" && OperatingSystem.IsWindows())
     var main = modules.First(m => m.ModuleName.Equals("FFT_enhanced.exe", StringComparison.OrdinalIgnoreCase));
     string Where(long address) => modules.FirstOrDefault(m => address >= m.Start && address < m.End) is { ModuleName: not null } m
         ? $"{m.ModuleName}+0x{address - m.Start:X}" : $"0x{address:X}";
-    foreach (var thread in game.Threads.Cast<ProcessThread>().OrderByDescending(t => t.TotalProcessorTime).Take(12))
+    foreach (var thread in game.Threads.Cast<ProcessThread>().OrderByDescending(t => t.TotalProcessorTime).Take(args.Length > 1 ? int.Parse(args[1]) : 12))
     {
         var state = thread.ThreadState == System.Diagnostics.ThreadState.Wait ? $"waiting ({thread.WaitReason})" : thread.ThreadState.ToString();
         var line = $"thread {thread.Id}: {thread.TotalProcessorTime.TotalSeconds:F1} s CPU, {state}";
@@ -580,6 +580,28 @@ if (args.Length >= 1 && args[0] == "--threads" && OperatingSystem.IsWindows())
             System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
             ProcessMemory.Native.CloseHandle(threadHandle);
         }
+    }
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
+// TICScan --walk <thread id>...: a thread's real call stack (dbghelp's unwinder), for a hang.
+if (args.Length >= 2 && args[0] == "--walk" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var modules = game.Modules.Cast<ProcessModule>().Select(m => (m.ModuleName, Start: (long)m.BaseAddress, End: (long)m.BaseAddress + m.ModuleMemorySize)).ToList();
+    string Where(long address) => modules.FirstOrDefault(m => address >= m.Start && address < m.End) is { ModuleName: not null } m
+        ? $"{m.ModuleName}+0x{address - m.Start:X}" : $"0x{address:X}";
+    foreach (var id in args[1..].Select(int.Parse))
+    {
+        var thread = Threads.OpenThread(0x0002 | 0x0008 | 0x0040, false, id);
+        Console.WriteLine($"thread {id}:");
+        foreach (var (pc, sp) in Threads.Walk(handle, thread))
+            Console.WriteLine($"  {Where(pc),-40} sp 0x{sp:X}");
+        ProcessMemory.Native.CloseHandle(thread);
     }
     ProcessMemory.Native.CloseHandle(handle);
     return 0;
@@ -916,4 +938,65 @@ static class Threads
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool GetThreadContext(IntPtr thread, IntPtr context);
+
+    [System.Runtime.InteropServices.DllImport("dbghelp.dll", SetLastError = true)]
+    public static extern bool SymInitialize(IntPtr process, string? searchPath, bool invadeProcess);
+
+    [System.Runtime.InteropServices.DllImport("dbghelp.dll", SetLastError = true)]
+    public static extern bool SymCleanup(IntPtr process);
+
+    [System.Runtime.InteropServices.DllImport("dbghelp.dll", SetLastError = true)]
+    public static extern bool StackWalk64(int machine, IntPtr process, IntPtr thread, IntPtr frame, IntPtr context,
+        IntPtr readMemory, IntPtr functionTableAccess, IntPtr getModuleBase, IntPtr translateAddress);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    public static extern IntPtr GetProcAddress(IntPtr module, string name);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern IntPtr LoadLibrary(string name);
+
+    /// <summary>
+    /// The thread's real call stack, unwound by dbghelp from the modules' unwind data (the thread is
+    /// paused while it's walked): each frame's code address, and its first four stack arguments' slots.
+    /// </summary>
+    public static List<(long Pc, long Sp)> Walk(IntPtr process, IntPtr thread)
+    {
+        var frames = new List<(long, long)>();
+        var dbghelp = LoadLibrary("dbghelp.dll");
+        var tableAccess = GetProcAddress(dbghelp, "SymFunctionTableAccess64");
+        var moduleBase = GetProcAddress(dbghelp, "SymGetModuleBase64");
+        SymInitialize(process, null, true);
+        var buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(0x4D0 + 16);
+        var context = (buffer + 15) & ~(nint)15;
+        var frame = System.Runtime.InteropServices.Marshal.AllocHGlobal(0x400);
+        SuspendThread(thread);
+        try
+        {
+            System.Runtime.InteropServices.Marshal.Copy(new byte[0x4D0], 0, context, 0x4D0);
+            System.Runtime.InteropServices.Marshal.WriteInt32(context, 0x30, 0x10000B); // CONTEXT_FULL (AMD64)
+            if (!GetThreadContext(thread, context))
+                return frames;
+            System.Runtime.InteropServices.Marshal.Copy(new byte[0x400], 0, frame, 0x400);
+            // STACKFRAME64: AddrPC at 0, AddrFrame at 0x20, AddrStack at 0x30 (ADDRESS64: offset, segment, mode 3 = flat).
+            void Address(int at, long value) { System.Runtime.InteropServices.Marshal.WriteInt64(frame, at, value); System.Runtime.InteropServices.Marshal.WriteInt32(frame, at + 0xC, 3); }
+            Address(0x00, System.Runtime.InteropServices.Marshal.ReadInt64(context, 0xF8)); // Rip
+            Address(0x20, System.Runtime.InteropServices.Marshal.ReadInt64(context, 0xA0)); // Rbp
+            Address(0x30, System.Runtime.InteropServices.Marshal.ReadInt64(context, 0x98)); // Rsp
+            while (frames.Count < 64 && StackWalk64(0x8664, process, thread, frame, context, IntPtr.Zero, tableAccess, moduleBase, IntPtr.Zero))
+            {
+                var pc = System.Runtime.InteropServices.Marshal.ReadInt64(frame, 0x00);
+                if (pc == 0)
+                    break;
+                frames.Add((pc, System.Runtime.InteropServices.Marshal.ReadInt64(frame, 0x30)));
+            }
+            return frames;
+        }
+        finally
+        {
+            ResumeThread(thread);
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(frame);
+            SymCleanup(process);
+        }
+    }
 }

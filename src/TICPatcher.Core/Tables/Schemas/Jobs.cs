@@ -111,6 +111,20 @@ public static class Jobs
         RecordName = SlotName,
     };
 
+    /// <summary>
+    /// The formation slot of each unit sprite, read by the party screen for a story-character unit
+    /// (sprite set below 0x80). Slots below 0x3E are drawn from <see cref="FormationSlotSprites"/>;
+    /// higher ones (the guests' 0x78-0x93) are treated like a generic unit and crash the party screen,
+    /// so a guest who joins needs a low slot here, e.g. Isilud 0x26 -> 0x08.
+    /// </summary>
+    public static readonly TableSchema SpriteFormationSlots = new(
+        "SpriteFormationSlots", RecordSize: 2, RecordCount: 0xD3,
+        Fields: [FieldDef.U16("Slot", 0) with { LinksTo = "FormationSlotSprites" }],
+        Source: "TIC's exe, read at +0x300F39 by the party screen (crash at +0x301451 for a slot of 0x3E or more)")
+    {
+        RecordNames = Names.SpriteFiles,
+    };
+
     static readonly IReadOnlyDictionary<int, string> NoSprite = new Dictionary<int, string> { [0xFFFF] = "None" };
 
     static string SlotName(int slot) =>
