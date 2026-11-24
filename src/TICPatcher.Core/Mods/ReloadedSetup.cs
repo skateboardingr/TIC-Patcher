@@ -175,6 +175,15 @@ public sealed class ReloadedSetup
         return File.Exists(path) && Version.TryParse((string?)JsonNode.Parse(File.ReadAllText(path))?["ModVersion"], out var version) ? version : null;
     }
 
+    /// <summary>Whether the installed TIC Loader has exactly these files.</summary>
+    public bool LoaderMatches(IEnumerable<(string Name, byte[] Contents)> files)
+    {
+        var folder = Path.Combine(ModsFolder, LoaderModId);
+        return files.All(f => File.Exists(Path.Combine(folder, f.Name))
+            && new FileInfo(Path.Combine(folder, f.Name)).Length == f.Contents.Length
+            && File.ReadAllBytes(Path.Combine(folder, f.Name)).AsSpan().SequenceEqual(f.Contents));
+    }
+
     /// <summary>Installs or updates TIC Loader from (file name, contents) pairs, keeping any other files in its folder.</summary>
     public void InstallLoader(IEnumerable<(string Name, byte[] Contents)> files)
     {

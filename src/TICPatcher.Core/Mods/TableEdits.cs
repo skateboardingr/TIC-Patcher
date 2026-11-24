@@ -28,6 +28,11 @@ public sealed class TableEdits
 
     public bool IsEmpty => _edits.Count == 0 && _text.Count == 0;
 
+    private readonly List<string> _unknownTables = [];
+
+    /// <summary>Tables in the parsed tables.json that this version doesn't know (left out).</summary>
+    public IReadOnlyList<string> UnknownTables => _unknownTables;
+
     /// <summary>Every change, stats and text.</summary>
     public int Count => All.Count() + AllText.Count();
 
@@ -235,6 +240,12 @@ public sealed class TableEdits
             if (table.Name == TextSection)
             {
                 ParseText(table.Value, edits);
+                continue;
+            }
+            // A table from a newer TIC Patcher is left out, not the whole mod.
+            if (!KnownTables.ContainsKey(table.Name))
+            {
+                edits._unknownTables.Add(table.Name);
                 continue;
             }
             foreach (var record in table.Value.EnumerateObject())

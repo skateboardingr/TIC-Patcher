@@ -58,7 +58,6 @@ public class LoaderTests
     }
 
     [Theory]
-    [InlineData("""{ "Spells": { "0x01": { "Price": 1 } } }""", "Unknown table")]
     [InlineData("""{ "Jobs": { "0xFF": { "Move": 6 } } }""", "outside")]
     [InlineData("""{ "Jobs": { "0x01": { "Speed": 6 } } }""", "unknown field")]
     [InlineData("""{ "Jobs": { "0x01": { "Move": 300 } } }""", "isn't valid")]
@@ -68,5 +67,13 @@ public class LoaderTests
     {
         var error = Assert.Throws<FormatException>(() => TableEdits.Parse(json));
         Assert.Contains(expected, error.Message);
+    }
+
+    [Fact]
+    public void LeavesOutUnknownTablesButKeepsTheRest()
+    {
+        var edits = TableEdits.Parse("""{ "Spells": { "0x01": { "Price": 1 } }, "Jobs": { "0x01": { "Move": 6 } } }""");
+        Assert.Equal(["Spells"], edits.UnknownTables);
+        Assert.Equal("6", edits.Get("Jobs", 1, "Move"));
     }
 }

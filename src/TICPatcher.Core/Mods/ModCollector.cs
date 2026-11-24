@@ -53,7 +53,10 @@ public sealed class ModCollector
     {
         try
         {
-            if (read() is not { IsEmpty: false } edits)
+            var edits = read();
+            if (edits is { UnknownTables.Count: > 0 })
+                log($"{id}: left out {string.Join(", ", edits.UnknownTables)} from {source} (unknown table; update TIC Loader)");
+            if (edits is not { IsEmpty: false })
                 return;
             merged.Merge(edits);
             log($"{id}: {edits.Count} change(s) from {source}");

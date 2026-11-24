@@ -25,10 +25,13 @@ internal static class LoaderBundle
         if (Version is not { } bundled)
             return null;
         var installed = reloaded.LoaderVersion();
-        if (installed is not null && installed >= bundled)
+        // A newer loader is kept; the same version is refreshed if its files differ, so a
+        // rebuilt editor never runs with an older loader of the same number.
+        if (installed is not null && (installed > bundled || installed == bundled && reloaded.LoaderMatches(Files())))
             return null;
         reloaded.InstallLoader(Files());
-        return installed is null ? $"Installed TIC Loader {bundled}." : $"Updated TIC Loader {installed} → {bundled}.";
+        return installed is null ? $"Installed TIC Loader {bundled}."
+            : installed == bundled ? $"Refreshed TIC Loader {bundled}." : $"Updated TIC Loader {installed} → {bundled}.";
     }
 
     private static byte[] Read(string resource)
