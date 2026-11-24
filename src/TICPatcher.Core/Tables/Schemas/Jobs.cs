@@ -80,11 +80,41 @@ public static class Jobs
     /// </summary>
     public static readonly TableSchema FormationSprites1 = new(
         "JobFormationSprites1", RecordSize: 1, RecordCount: 0x4A,
-        Fields: [FieldDef.U8("FormationSprite", 0)],
+        Fields: [FieldDef.U8("FormationSprite", 0) with { LinksTo = "FormationSlotSprites" }],
         Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites1); located in TIC by FFTPatcher's PSX defaults") { RecordNames = Names.Jobs };
 
     public static readonly TableSchema FormationSprites2 = new(
         "JobFormationSprites2", RecordSize: 2, RecordCount: 0x4A,
-        Fields: [FieldDef.U16("FormationSprite2", 0)],
+        Fields: [FieldDef.U16("FormationSprite2", 0) with { LinksTo = "SlotSprites" }],
         Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites2); found byte for byte in TIC") { RecordNames = Names.Jobs };
+
+    /// <summary>
+    /// The sprite shown for each formation slot (a job's FormationSprite): 24 story-character
+    /// slots, then the generic jobs (male, female). The game reads this list only for slots
+    /// 0 to 0x51 and goes to <see cref="SlotSprites"/> for higher ones, but the formation
+    /// screen froze on those in testing, so a guest who joins should get a slot here.
+    /// </summary>
+    public static readonly TableSchema FormationSlotSprites = new(
+        "FormationSlotSprites", RecordSize: 4, RecordCount: 0x52,
+        Fields: [FieldDef.U16("Sprite", 0) with { NameList = Names.SpriteFiles, Specials = NoSprite }],
+        Source: "TIC's exe, read at +0x2F99A9, +0x339E00 and +0x3994E9 for slots up to 0x51")
+    {
+        RecordName = SlotName,
+    };
+
+    /// <summary>The sprite for each FormationSprite2 slot (and FormationSprite slots above 0x51), e.g. 0x89 Isilud.</summary>
+    public static readonly TableSchema SlotSprites = new(
+        "SlotSprites", RecordSize: 4, RecordCount: 0xA0,
+        Fields: [FieldDef.U16("Sprite", 0) with { NameList = Names.SpriteFiles, Specials = NoSprite }],
+        Source: "TIC's exe, read by the function at +0x274028 for slots up to 0x9F")
+    {
+        RecordName = SlotName,
+    };
+
+    static readonly IReadOnlyDictionary<int, string> NoSprite = new Dictionary<int, string> { [0xFFFF] = "None" };
+
+    static string SlotName(int slot) =>
+        slot < 24 ? $"Slot {slot:X2} (story character)"
+        : slot < 64 ? $"Slot {slot:X2} ({Names.Get(Names.Jobs, 0x4A + (slot - 24) / 2)}, {(slot % 2 == 0 ? "male" : "female")})"
+        : $"Slot {slot:X2}";
 }

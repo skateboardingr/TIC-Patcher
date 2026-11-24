@@ -513,6 +513,78 @@ if (args.Length >= 3 && args[0] == "--what-battles" && OperatingSystem.IsWindows
     return 0;
 }
 
+// TICScan --threads: where each of the running game's threads is (for a hang): CPU time, state, the code
+// it's in (module + offset) and game-code return addresses on its stack. Each thread is paused only while
+// its registers are read.
+if (args.Length >= 1 && args[0] == "--threads" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    var handle = ProcessMemory.Native.OpenProcess(ProcessMemory.Native.PROCESS_QUERY_INFORMATION | ProcessMemory.Native.PROCESS_VM_READ, false, game.Id);
+    var memory = new ProcessMemory(handle);
+    var modules = game.Modules.Cast<ProcessModule>().Select(m => (m.ModuleName, Start: (long)m.BaseAddress, End: (long)m.BaseAddress + m.ModuleMemorySize)).ToList();
+    var main = modules.First(m => m.ModuleName.Equals("FFT_enhanced.exe", StringComparison.OrdinalIgnoreCase));
+    string Where(long address) => modules.FirstOrDefault(m => address >= m.Start && address < m.End) is { ModuleName: not null } m
+        ? $"{m.ModuleName}+0x{address - m.Start:X}" : $"0x{address:X}";
+    foreach (var thread in game.Threads.Cast<ProcessThread>().OrderByDescending(t => t.TotalProcessorTime).Take(12))
+    {
+        var state = thread.ThreadState == System.Diagnostics.ThreadState.Wait ? $"waiting ({thread.WaitReason})" : thread.ThreadState.ToString();
+        var line = $"thread {thread.Id}: {thread.TotalProcessorTime.TotalSeconds:F1} s CPU, {state}";
+        var threadHandle = Threads.OpenThread(0x0002 | 0x0008 | 0x0040, false, thread.Id); // suspend/resume, get context, query
+        if (threadHandle == IntPtr.Zero)
+        {
+            Console.WriteLine(line + ", couldn't open");
+            continue;
+        }
+        var buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(0x4D0 + 16);
+        var context = (buffer + 15) & ~(nint)15;
+        try
+        {
+            System.Runtime.InteropServices.Marshal.Copy(new byte[0x4D0], 0, context, 0x4D0);
+            System.Runtime.InteropServices.Marshal.WriteInt32(context, 0x30, 0x100003); // CONTEXT_CONTROL | CONTEXT_INTEGER (AMD64)
+            Threads.SuspendThread(threadHandle);
+            var ok = Threads.GetThreadContext(threadHandle, context);
+            Threads.ResumeThread(threadHandle);
+            if (!ok)
+            {
+                Console.WriteLine(line + ", no context");
+                continue;
+            }
+            var rip = System.Runtime.InteropServices.Marshal.ReadInt64(context, 0xF8);
+            var rsp = System.Runtime.InteropServices.Marshal.ReadInt64(context, 0x98);
+            Console.WriteLine($"{line}, at {Where(rip)}");
+            // Return addresses into the game's own code, from the top of the stack down.
+            byte[] stack;
+            // Up to the end of the stack's region (the stack's top is near).
+            stack = [];
+            if (ProcessMemory.Native.VirtualQueryEx(handle, (IntPtr)rsp, out var region, (IntPtr)System.Runtime.InteropServices.Marshal.SizeOf<ProcessMemory.Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero)
+            {
+                var end = (long)region.BaseAddress + (long)region.RegionSize;
+                try { stack = memory.Read(rsp, (int)Math.Min(0x10000, end - rsp)); } catch { stack = []; }
+            }
+            var calls = new List<string>();
+            for (var i = 0; i + 8 <= stack.Length && calls.Count < 14; i += 8)
+            {
+                var value = BitConverter.ToInt64(stack, i);
+                // Code addresses in the game or its own DLLs (not Windows').
+                if (modules.FirstOrDefault(m => value >= m.Start && value < m.End) is { ModuleName: { } name }
+                    && !name.StartsWith("ntdll", StringComparison.OrdinalIgnoreCase) && !name.StartsWith("KERNEL", StringComparison.OrdinalIgnoreCase)
+                    && !name.StartsWith("ucrtbase", StringComparison.OrdinalIgnoreCase) && !name.StartsWith("win32u", StringComparison.OrdinalIgnoreCase))
+                    calls.Add(Where(value));
+            }
+            Console.WriteLine(calls.Count > 0 ? $"    called from: {string.Join(" <- ", calls)}" : $"    (stack at 0x{rsp:X}: read {stack.Length} bytes, first {string.Join(" ", Enumerable.Range(0, Math.Min(6, stack.Length / 8)).Select(k => Where(BitConverter.ToInt64(stack, k * 8))))})");
+        }
+        finally
+        {
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
+            ProcessMemory.Native.CloseHandle(threadHandle);
+        }
+    }
+    ProcessMemory.Native.CloseHandle(handle);
+    return 0;
+}
+
 // TICScan --battles: where the running game holds its battles (as TIC Loader finds them), read-only.
 if (args.Length >= 1 && args[0] == "--battles" && OperatingSystem.IsWindows())
 {
@@ -828,4 +900,20 @@ static class Finder
             ProcessMemory.Native.CloseHandle(handle);
         }
     }
+}
+
+// Thread access for --threads.
+static class Threads
+{
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenThread(int access, bool inherit, int id);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    public static extern int SuspendThread(IntPtr thread);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    public static extern int ResumeThread(IntPtr thread);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool GetThreadContext(IntPtr thread, IntPtr context);
 }
