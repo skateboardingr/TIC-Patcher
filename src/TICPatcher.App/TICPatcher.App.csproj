@@ -23,7 +23,8 @@
        Reloaded-II: built first as a dependency (not linked in), then its files
        are embedded as TICLoader/<name>. -->
   <ItemGroup>
-    <ProjectReference Include="../TICLoader/TICLoader.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <!-- Without the editor's runtime, so a win-x64 publish still builds the loader into bin/<Configuration>/tic.loader. -->
+    <ProjectReference Include="../TICLoader/TICLoader.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" UndefineProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;IncludeNativeLibrariesForSelfExtract" />
   </ItemGroup>
   <Target Name="EmbedTICLoader" AfterTargets="ResolveProjectReferences">
     <ItemGroup>
