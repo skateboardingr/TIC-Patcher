@@ -21,7 +21,7 @@ public sealed class MainWindow : Window
 {
     private static readonly (string Tab, TableSchema[] Tables)[] Groups =
     [
-        ("Jobs", [Jobs.Schema, SkillSets.JobRequirements, Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots]),
+        ("Jobs", [Jobs.Schema, SkillSets.JobRequirements, Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots, .. Jobs.SpriteSlotCopies]),
         ("Skill Sets", [SkillSets.Main, SkillSets.Extra, SkillSets.ActionMenus]),
         ("Monster Skills", [SkillSets.MonsterSkills]),
         ("Abilities", [Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge, Abilities.Effects, Abilities.Animations]),

@@ -125,7 +125,30 @@ public static class Jobs
         RecordNames = Names.SpriteFiles,
     };
 
-    static readonly IReadOnlyDictionary<int, string> NoSprite = new Dictionary<int, string> { [0xFFFF] = "None" };
+    /// <summary>
+    /// The game keeps six copies of the sprite -> slot list (<see cref="FormationSprites2"/>,
+    /// <see cref="SpriteFormationSlots"/> and these four), each read by different code. Values
+    /// above 0x51 are looked up in <see cref="SlotSprites"/>, e.g. 0x80 = Wiegraf ch. 2/3. The copy
+    /// at +0x6807C0 seems to pick the unit's face on the party screen.
+    /// </summary>
+    public static readonly IReadOnlyList<TableSchema> SpriteSlotCopies =
+    [
+        SpriteSlotCopy("SpriteSlots2", "+0x2C0853, then the slot sprite function +0x274028 (party screen face)"),
+        SpriteSlotCopy("SpriteSlots3", "no direct reader found"),
+        SpriteSlotCopy("SpriteSlots4", "+0x2DB41E"),
+        SpriteSlotCopy("SpriteSlots5", "+0x32AC23"),
+    ];
+
+    private static TableSchema SpriteSlotCopy(string name, string readBy) => new(
+        name, RecordSize: 2, RecordCount: 0xD3,
+        Fields: [FieldDef.U16("Slot", 0) with { LinksTo = "SlotSprites" }],
+        Source: $"TIC's exe, a copy of the sprite -> slot list read at {readBy}")
+    {
+        RecordNames = Names.SpriteFiles,
+    };
+
+    // A property, as the tables above are built before a static field declared here would be.
+    static IReadOnlyDictionary<int, string> NoSprite => new Dictionary<int, string> { [0xFFFF] = "None" };
 
     static string SlotName(int slot) =>
         slot < 24 ? $"Slot {slot:X2} (story character)"
