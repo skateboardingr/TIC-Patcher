@@ -30,6 +30,9 @@ public static class TextPatcher
         }
     }
 
+    /// <summary>The text table starting at the start of <paramref name="block"/>, read from <paramref name="address"/>, if it is one.</summary>
+    public static FoundTable? At(byte[] block, long address) => Recognise(block, 0) is { } found ? found with { Address = address } : null;
+
     private static FoundTable? Recognise(byte[] block, int start)
     {
         if (start + 0x30 > block.Length || BitConverter.ToInt32(block, start + 0x20) != 0x30)

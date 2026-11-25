@@ -34,6 +34,23 @@ foreach (var shot in args.Skip(2).DefaultIfEmpty("0:1"))
         Pump();
         continue;
     }
+    // mem:label prints the editor's memory: managed heap (after a full collection) and the process's.
+    if (shot.StartsWith("mem:"))
+    {
+        Pump();
+        var before = GC.GetTotalMemory(false);
+        var managed = GC.GetTotalMemory(true);
+        using var self = System.Diagnostics.Process.GetCurrentProcess();
+        Console.WriteLine($"mem {shot[4..]}: managed {before / 1048576} MB, {managed / 1048576} MB after collecting; private {self.PrivateMemorySize64 / 1048576} MB, working set {self.WorkingSet64 / 1048576} MB");
+        continue;
+    }
+    // tab:N selects a top-level tab without taking a picture.
+    if (shot.StartsWith("tab:"))
+    {
+        window.GetLogicalDescendants().OfType<TabControl>().First().SelectedIndex = int.Parse(shot[4..]);
+        Pump();
+        continue;
+    }
     // click:Label presses the button with that text on the current tab.
     if (shot.StartsWith("click:"))
     {

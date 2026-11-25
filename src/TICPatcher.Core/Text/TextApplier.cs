@@ -33,13 +33,23 @@ public static class TextApplier
             return done.Tables.Count;
         // Reads the game's working memory a block at a time, in two passes, so
         // nothing like a copy of the whole game is held at once.
-        IEnumerable<(long Start, byte[] Bytes)> Blocks() => memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true);
+        IEnumerable<(long Start, ArraySegment<byte> Bytes)> Blocks() => memory.ScanBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true);
 
-        // 1. The loaded text tables the mod changes.
+        // 1. The loaded text tables the mod changes: a window after each table header is copied
+        // out and checked (text tables are tens of KB; the scan buffer is reused for every block).
+        const int Window = 4 << 20;
         var tables = new Dictionary<long, FoundTable>();
-        foreach (var (start, bytes) in Blocks())
-            foreach (var table in TextPatcher.Find(bytes, start).Where(t => wanted.Contains(t.Table.Name) && !done.Copies.Contains(t.Address) && !Ours(t.Address)))
-                tables[table.Address] = table;
+        var magic = System.Text.Encoding.ASCII.GetBytes(NxdTable.Magic);
+        foreach (var (start, block) in Blocks())
+            for (var at = block.AsSpan().IndexOf(magic); at >= 0;)
+            {
+                var window = block.AsSpan(at, Math.Min(Window, block.Count - at)).ToArray();
+                var table = TextPatcher.At(window, start + at);
+                if (table is not null && wanted.Contains(table.Table.Name) && !done.Copies.Contains(table.Address) && !Ours(table.Address))
+                    tables[table.Address] = table;
+                var next = block.AsSpan(at + 1).IndexOf(magic);
+                at = next < 0 ? -1 : at + 1 + next;
+            }
 
         if (tables.Count == 0)
             return done.Tables.Count;
@@ -52,16 +62,17 @@ public static class TextApplier
         long low = starts[0], high = starts[^1] + MaxTable;
         var records = new Dictionary<long, List<(long At, long Size)>>();
         var pointers = starts.ToDictionary(a => a, _ => new List<(long At, long Value)>());
-        foreach (var (start, bytes) in Blocks())
-            for (var i = 0; i + 8 <= bytes.Length; i += 8)
+        foreach (var (start, block) in Blocks())
+            for (var i = 0; i + 8 <= block.Count; i += 8)
             {
-                var value = BitConverter.ToInt64(bytes, i);
+                var bytes = block.AsSpan();
+                var value = BitConverter.ToInt64(bytes[i..]);
                 if (value < low || value >= high)
                     continue; // nearly every word: not near any table
                 var index = Array.BinarySearch(starts, value);
                 if (index >= 0)
                 {
-                    var size = i + 16 <= bytes.Length ? BitConverter.ToInt64(bytes, i + 8) : 0;
+                    var size = i + 16 <= bytes.Length ? BitConverter.ToInt64(bytes[(i + 8)..]) : 0;
                     if (size is > 0x30 and < MaxTable && !Ours(start + i))
                         (records.TryGetValue(value, out var list) ? list : records[value] = []).Add((start + i, size));
                     continue;

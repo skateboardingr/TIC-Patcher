@@ -34,13 +34,13 @@ public static class BattleMemory
             .ToList();
         var managed = insideGame ? memory.ManagedHeapBases() : [];
         var hits = probes.ToDictionary(p => p.Offset, _ => new List<long>());
-        foreach (var (start, bytes) in memory.ContiguousBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true))
+        foreach (var (start, block) in memory.ScanBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true))
             foreach (var (offset, probe) in probes)
-                for (var at = bytes.AsSpan().IndexOf(probe); at >= 0;)
+                for (var at = block.AsSpan().IndexOf(probe); at >= 0;)
                 {
                     if (managed.Count == 0 || !managed.Contains(memory.AllocationBase(start + at)))
                         hits[offset].Add(start + at - offset);
-                    var next = bytes.AsSpan(at + 1).IndexOf(probe);
+                    var next = block.AsSpan(at + 1).IndexOf(probe);
                     at = next < 0 ? -1 : at + 1 + next;
                 }
         // Each probe found once (unchanged ones), all pointing at the same block.

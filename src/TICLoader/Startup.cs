@@ -145,6 +145,8 @@ public unsafe class Startup : IMod
                 build = null;
             }
             Log(build is null ? "unknown game version: only jobs can be edited" : $"game version: {build.Name}");
+            using (var game = Process.GetCurrentProcess())
+                Log($"memory at start: game {game.PrivateMemorySize64 >> 20} MB");
             _api.GameVersion = build?.Name;
 
             foreach (var table in edits.ChangedTables)
@@ -194,11 +196,13 @@ public unsafe class Startup : IMod
             if (count >= tables)
             {
                 Log($"text: all {tables} table(s) changed");
+                Tidy("text");
                 return;
             }
             if (waited.Elapsed > TimeSpan.FromMinutes(3))
             {
                 Log($"text: only {done.Tables.Count} of {tables} table(s) were found; the rest is unchanged");
+                Tidy("text");
                 return;
             }
             Thread.Sleep(3000);
@@ -251,6 +255,7 @@ public unsafe class Startup : IMod
                 {
                     var bytes = BattleMemory.Apply(memory, found, wanted);
                     Log($"Battles: {bytes} byte(s) changed at 0x{found:X} (looked for {attempt.ElapsedMilliseconds} ms)");
+                    Tidy("battles");
                     waited.Restart();
                 }
                 else if (waited.Elapsed > TimeSpan.FromMinutes(3))
@@ -287,6 +292,16 @@ public unsafe class Startup : IMod
             foreach (var offset in JobTableFingerprint.Find(bytes))
                 found.Add((start + offset, bytes.AsSpan((int)offset, length).ToArray()));
         return found;
+    }
+
+    // After a search of the game's memory: give the memory its reads used back to Windows (.NET
+    // keeps a collected heap's memory otherwise), and say how much the game and TIC Loader use.
+    private void Tidy(string after)
+    {
+        System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        using var game = Process.GetCurrentProcess();
+        Log($"memory after {after}: game {game.PrivateMemorySize64 >> 20} MB, of which TIC Loader's .NET heap {GC.GetTotalMemory(false) >> 20} MB ({GC.GetGCMemoryInfo().TotalCommittedBytes >> 20} MB committed)");
     }
 
     private void Log(string message) => _logger.WriteLine("[TIC Loader] " + message);

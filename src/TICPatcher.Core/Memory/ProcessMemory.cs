@@ -76,6 +76,52 @@ public sealed class ProcessMemory(IntPtr handle)
             yield return (blockStart, Join(parts));
     }
 
+    /// <summary>
+    /// Like <see cref="ContiguousBlocks"/>, but each block is read into one reused buffer, valid
+    /// only until the next block: for scans of a whole process from inside the game, which would
+    /// otherwise allocate (and leave .NET holding) gigabytes of short-lived arrays. Blocks are cut
+    /// at 64 MB, so something straddling a cut is missed, which is rare.
+    /// </summary>
+    public IEnumerable<(long Start, ArraySegment<byte> Bytes)> ScanBlocks(long from, long to, bool privateOnly = false)
+    {
+        const int Max = 64 << 20;
+        var buffer = _scanBuffer ??= GC.AllocateUninitializedArray<byte>(Max, pinned: true);
+        long blockStart = 0;
+        var used = 0;
+        long address = from;
+        while (address < to && Native.VirtualQueryEx(Handle, (IntPtr)address, out var info, (IntPtr)Marshal.SizeOf<Native.MEMORY_BASIC_INFORMATION>()) != IntPtr.Zero)
+        {
+            long regionStart = (long)info.BaseAddress;
+            long regionSize = (long)info.RegionSize;
+            address = regionStart + regionSize;
+            if (info.State != Native.MEM_COMMIT || (info.Protect & Native.PAGE_GUARD) != 0 || (info.Protect & Native.READABLE) == 0
+                || privateOnly && info.Type != Native.MEM_PRIVATE || (info.Protect & Native.UNCACHED) != 0 || regionSize > 1L << 30)
+                continue;
+            for (long offset = 0; offset < regionSize;)
+            {
+                // A block goes on only while memory is back to back and fits.
+                if (used > 0 && (regionStart + offset != blockStart + used || used == Max))
+                {
+                    yield return (blockStart, new ArraySegment<byte>(buffer, 0, used));
+                    used = 0;
+                }
+                if (used == 0)
+                    blockStart = regionStart + offset;
+                var piece = (int)Math.Min(regionSize - offset, Max - used);
+                if (!Native.ReadProcessMemory(Handle, (IntPtr)(regionStart + offset), Marshal.UnsafeAddrOfPinnedArrayElement(buffer, used), (IntPtr)piece, out var read) || (long)read == 0)
+                    break;
+                used += (int)(long)read;
+                offset += (long)read;
+                if ((long)read < piece)
+                    break;
+            }
+        }
+        if (used > 0)
+            yield return (blockStart, new ArraySegment<byte>(buffer, 0, used));
+    }
+
+    private byte[]? _scanBuffer;
+
     /// <param name="privateOnly">Only the process's own working memory (heap), skipping executables and mapped files.</param>
     public IEnumerable<(long Start, byte[] Bytes)> ReadableRegions(long from, long to, bool privateOnly = false)
     {
@@ -222,6 +268,9 @@ public sealed class ProcessMemory(IntPtr handle)
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool ReadProcessMemory(IntPtr process, IntPtr address, byte[] buffer, IntPtr size, out IntPtr read);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool ReadProcessMemory(IntPtr process, IntPtr address, IntPtr buffer, IntPtr size, out IntPtr read);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool WriteProcessMemory(IntPtr process, IntPtr address, byte[] buffer, IntPtr size, out IntPtr written);
