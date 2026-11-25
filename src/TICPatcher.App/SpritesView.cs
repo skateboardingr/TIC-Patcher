@@ -81,6 +81,7 @@ public sealed class SpritesView : UserControl
             return;
         _right.Children.Clear();
         _right.Children.Add(new TextBlock { Text = $"{Names.Get(Names.SpriteFiles, sprite)} (sprite {sprite:X2}, {UnitSprite.FileOf(sprite)})", FontSize = 18, FontWeight = FontWeight.SemiBold });
+        _right.Children.Add(Tables(sprite));
 
         // The 16 palettes, each a strip of its colours; click one to show and edit it.
         var palettes = new WrapPanel();
@@ -163,6 +164,52 @@ public sealed class SpritesView : UserControl
             MaxWidth = 700,
             HorizontalAlignment = HorizontalAlignment.Left,
         });
+    }
+
+    // Where the game can use this sprite: in battle (it has a sheet), on the formation screen and in
+    // the party. Ticking Formation or Party lends the sprite a spare story slot (see FormationSlots).
+    private Control Tables(int sprite)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+        var battle = new CheckBox { Content = "Battle", IsChecked = true, IsEnabled = false };
+        ToolTip.SetTip(battle, "Every sprite here has a battle sheet.");
+        row.Children.Add(battle);
+        if (!FormationSlots.Applies(sprite))
+        {
+            row.Children.Add(new TextBlock { Text = "Generic and monster sprites join through their jobs.", Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center });
+            return row;
+        }
+        var slot = FormationSlots.SlotOf(_project, sprite);
+        var shownIn = FormationSlots.FormationSlot(_project, sprite);
+        var formation = new CheckBox { Content = "Formation", IsChecked = shownIn is not null };
+        var party = new CheckBox { Content = "Party", IsChecked = FormationSlots.InParty(_project, sprite) };
+        ToolTip.SetTip(formation, shownIn is { } s
+            ? $"Formation slot {s:X2} shows this sprite."
+            : "No formation slot shows this sprite. Tick to lend it a spare story slot.");
+        ToolTip.SetTip(party, slot < FormationSlots.StorySlots
+            ? $"Uses formation slot {slot:X2}, which shows {Names.Get(Names.SpriteFiles, FormationSlots.SpriteIn(_project, slot)) ?? "?"}."
+            : $"Its formation slot is {slot:X2}: the party screen crashes on that, so it can't join. Tick to lend it a spare story slot.");
+        void Toggle(bool on)
+        {
+            if (on)
+            {
+                var lent = FormationSlots.AddToParty(_project, sprite);
+                _status(lent is { } l
+                    ? $"{Names.Get(Names.SpriteFiles, sprite)} can join: formation slot {l:X2} now shows it"
+                    : "No spare story slot left: untick another sprite first");
+            }
+            else
+            {
+                FormationSlots.RemoveFromParty(_project, sprite);
+                _status($"{Names.Get(Names.SpriteFiles, sprite)}: formation slot put back as the game has it");
+            }
+            Show();
+        }
+        formation.IsCheckedChanged += (_, _) => Toggle(formation.IsChecked == true);
+        party.IsCheckedChanged += (_, _) => Toggle(party.IsChecked == true);
+        row.Children.Add(formation);
+        row.Children.Add(party);
+        return row;
     }
 
     // Red, green and blue of the selected colour, 0-31 each.
