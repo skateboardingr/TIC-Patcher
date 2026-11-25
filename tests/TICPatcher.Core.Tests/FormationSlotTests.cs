@@ -10,7 +10,7 @@ public class FormationSlotTests
     private static ModProject Project()
     {
         var tables = AllTables.List.ToDictionary(t => t.Name, t => new byte[t.Length]);
-        // Story sprite n uses slot n - 1 and that slot shows it, except sprite 0x26, a guest on slot 0x89.
+        // Story sprite n uses slot n - 1 and that slot shows it, except sprite 0x26, an enemy-only character on slot 0x89.
         for (var sprite = 1; sprite <= 0x18; sprite++)
         {
             tables[Jobs.SpriteFormationSlots.Name][sprite * 2] = (byte)(sprite - 1);
@@ -37,7 +37,7 @@ public class FormationSlotTests
         Assert.True(FormationSlots.InParty(project, 0x26));
         Assert.Equal(0x26, FormationSlots.SpriteIn(project, 0x08));
         Assert.Equal(0x08, FormationSlots.FormationSlot(project, 0x26));
-        // Adding again keeps the same slot; another guest gets the next spare one.
+        // Adding again keeps the same slot; another recruit gets the next spare one.
         Assert.Equal(0x08, FormationSlots.AddToParty(project, 0x26));
         Assert.Equal(0x10, FormationSlots.AddToParty(project, 0x2B));
 
@@ -51,10 +51,10 @@ public class FormationSlotTests
     public void SaysWhenNoSpareSlotIsLeft()
     {
         var project = Project();
-        var guests = Enumerable.Range(0x30, FormationSlots.Spare.Count + 1).ToList();
-        foreach (var guest in guests.SkipLast(1))
-            Assert.NotNull(FormationSlots.AddToParty(project, guest));
-        Assert.Null(FormationSlots.AddToParty(project, guests[^1]));
+        var recruits = Enumerable.Range(0x30, FormationSlots.Spare.Count + 1).ToList();
+        foreach (var recruit in recruits.SkipLast(1))
+            Assert.NotNull(FormationSlots.AddToParty(project, recruit));
+        Assert.Null(FormationSlots.AddToParty(project, recruits[^1]));
     }
 
     [Fact]

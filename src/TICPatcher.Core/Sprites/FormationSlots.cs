@@ -7,7 +7,7 @@ namespace TICPatcher.Core.Sprites;
 /// Which story sprites can be in the party, and giving one a formation slot so it can.
 /// A unit with a story sprite (sprite set below 0x80) gets its slot from
 /// <see cref="Jobs.SpriteFormationSlots"/>; the party screen draws slots below 0x18 from
-/// <see cref="Jobs.FormationSlotSprites"/> and crashes on the guests' 0x78-0x93. So a sprite
+/// <see cref="Jobs.FormationSlotSprites"/> and crashes on the enemy-only story characters' 0x78-0x93. So a sprite
 /// joins by taking a spare story slot (one whose character never joins) and pointing it back at
 /// itself. Generic and monster sprites go through their jobs instead.
 /// </summary>

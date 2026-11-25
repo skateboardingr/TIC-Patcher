@@ -76,7 +76,7 @@ public static class Jobs
     /// <summary>
     /// Formation (party screen) sprites of the special jobs 0x00-0x49, the story characters':
     /// two tables, one byte and one 16-bit value per job. A job left at 0 in the first shows
-    /// Ramza (chapter 1) on the party screen, e.g. guest-only characters made to join.
+    /// Ramza (chapter 1) on the party screen, e.g. enemy-only story characters made to join.
     /// </summary>
     public static readonly TableSchema FormationSprites1 = new(
         "JobFormationSprites1", RecordSize: 1, RecordCount: 0x4A,
@@ -104,7 +104,7 @@ public static class Jobs
     /// The sprite shown for each formation slot (a job's FormationSprite): 24 story-character
     /// slots, then the generic jobs (male, female). The game reads this list only for slots
     /// 0 to 0x51 and goes to <see cref="SlotSprites"/> for higher ones, but the formation
-    /// screen froze on those in testing, so a guest who joins should get a slot here.
+    /// screen froze on those in testing, so a story character made to join should get a slot here.
     /// </summary>
     public static readonly TableSchema FormationSlotSprites = new(
         "FormationSlotSprites", RecordSize: 4, RecordCount: 0x52,
@@ -126,8 +126,8 @@ public static class Jobs
     /// <summary>
     /// The formation slot of each unit sprite, read by the party screen for a story-character unit
     /// (sprite set below 0x80). Slots below 0x3E are drawn from <see cref="FormationSlotSprites"/>;
-    /// higher ones (the guests' 0x78-0x93) are treated like a generic unit and crash the party screen,
-    /// so a guest who joins needs a low slot here, e.g. Isilud 0x26 -> 0x08.
+    /// higher ones (the enemy-only story characters' 0x78-0x93) are treated like a generic unit and crash the party screen,
+    /// so one made to join needs a low slot here, e.g. Isilud 0x26 -> 0x08.
     /// </summary>
     public static readonly TableSchema SpriteFormationSlots = new(
         "SpriteFormationSlots", RecordSize: 2, RecordCount: 0xD3,
