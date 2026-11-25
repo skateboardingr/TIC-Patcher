@@ -33,11 +33,12 @@ public static class LiveInjector
             var bytes = 0;
             foreach (var (name, original) in project.Vanilla.Tables)
             {
-                if (!build.Tables.TryGetValue(name, out var offset) || !AllTables.ByName.TryGetValue(name, out var schema))
+                if (!build.Tables.ContainsKey(name) || !AllTables.ByName.TryGetValue(name, out var schema))
                     continue;
                 var wanted = (byte[])original.Clone();
                 project.Edits.ApplyTo(name, wanted, schema.RecordSize);
-                bytes += memory.WriteChanges(start + offset, memory.Read(start + offset, wanted.Length), wanted);
+                foreach (var at in build.OffsetsOf(name))
+                    bytes += memory.WriteChanges(start + at, memory.Read(start + at, wanted.Length), wanted);
             }
 
             // Battles live in a block of the game's own memory, found by the original battles.

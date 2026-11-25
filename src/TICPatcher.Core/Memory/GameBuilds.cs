@@ -7,7 +7,15 @@ namespace TICPatcher.Core.Memory;
 /// TimeDateStamp and SizeOfImage, and where each table is in it (offsets from
 /// the start of the module). Measured with TICScan; see docs/tables.md.
 /// </summary>
-public sealed record GameBuild(string Name, uint TimeDateStamp, uint SizeOfImage, IReadOnlyDictionary<string, long> Tables);
+public sealed record GameBuild(string Name, uint TimeDateStamp, uint SizeOfImage, IReadOnlyDictionary<string, long> Tables)
+{
+    /// <summary>More places a table is kept, written with the same bytes (e.g. the game's copies of the sprite list).</summary>
+    public IReadOnlyDictionary<string, long[]> Copies { get; init; } = new Dictionary<string, long[]>();
+
+    /// <summary>Everywhere the table is: <see cref="Tables"/>'s offset first, then any copies.</summary>
+    public IEnumerable<long> OffsetsOf(string table) =>
+        Tables.TryGetValue(table, out var offset) ? [offset, .. Copies.GetValueOrDefault(table, [])] : [];
+}
 
 public static class GameBuilds
 {
@@ -24,10 +32,6 @@ public static class GameBuilds
             [Jobs.FormationSlotSprites.Name] = 0x714D50,
             [Jobs.SlotSprites.Name] = 0x7146D0,
             [Jobs.SpriteFormationSlots.Name] = 0x6829F0,
-            [Jobs.SpriteSlotCopies[0].Name] = 0x6807C0,
-            [Jobs.SpriteSlotCopies[1].Name] = 0x680C00,
-            [Jobs.SpriteSlotCopies[2].Name] = 0x681A90,
-            [Jobs.SpriteSlotCopies[3].Name] = 0x683A70,
             [SkillSets.MonsterSkills.Name] = 0x67F4C0,
             [Items.ShopInventories.Name] = 0x67F890,
             [Abilities.Animations.Name] = 0x672DA0,
@@ -51,7 +55,13 @@ public static class GameBuilds
             [Items.Extra.Name] = 0x680510,
             [Errands.Schema.Name] = 0x7B768C,
             [Items.ExtraArmor.Name] = 0x6732FC,
-        }),
+        })
+        {
+            Copies = new Dictionary<string, long[]>
+            {
+                [Jobs.FormationSprites2.Name] = [0x6807C0, 0x680C00, 0x681A90, 0x683A70],
+            },
+        },
     ];
 
     /// <summary>The build whose PE header is at the start of <paramref name="header"/>, if known.</summary>

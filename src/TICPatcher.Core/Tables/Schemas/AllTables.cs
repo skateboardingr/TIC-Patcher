@@ -6,7 +6,7 @@ public static class AllTables
     public static readonly IReadOnlyList<TableSchema> List =
     [
         Jobs.Schema,
-        Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots, .. Jobs.SpriteSlotCopies,
+        Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots,
         SkillSets.JobRequirements,
         SkillSets.Main, SkillSets.Extra, SkillSets.MonsterSkills, SkillSets.ActionMenus,
         Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge,

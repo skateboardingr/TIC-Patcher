@@ -154,8 +154,9 @@ public unsafe class Startup : IMod
                     new Thread(() => KeepBattles(memory, module.FileName, edits)) { IsBackground = true, Name = "TIC Loader battles" }.Start();
                 else if (table == Jobs.Schema.Name)
                     ApplyTable(memory, schema, edits, moduleStart, jobs);
-                else if (build is not null && build.Tables.TryGetValue(table, out var offset))
-                    ApplyTable(memory, schema, edits, moduleStart, offset);
+                else if (build is not null && build.Tables.ContainsKey(table))
+                    foreach (var offset in build.OffsetsOf(table))
+                        ApplyTable(memory, schema, edits, moduleStart, offset);
                 else
                     Log($"{table}: skipped, not located in this game version");
             }

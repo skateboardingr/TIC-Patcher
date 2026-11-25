@@ -50,8 +50,23 @@ public static class FormationSlots
             return null;
         project.Set(Jobs.FormationSlotSprites, chosen, "Sprite", sprite.ToString());
         project.Set(Jobs.SpriteFormationSlots, sprite, "Slot", chosen.ToString());
+        // The face and the other screens go by the sprite list; point it at a slot showing this
+        // sprite if it doesn't already (Wiegraf ch. 2/3's goes to Valmafra in the game's data).
+        if (FaceSlot(project, sprite) is null
+            && Enumerable.Range(0, Jobs.SlotSprites.RecordCount).Cast<int?>().FirstOrDefault(s => SlotSprite(project, s!.Value) == sprite) is { } face)
+            project.Set(Jobs.FormationSprites2, sprite, "FormationSprite2", face.ToString());
         return chosen;
     }
+
+    /// <summary>The sprite list's slot for this sprite, if that slot shows it (it picks the party-screen face).</summary>
+    public static int? FaceSlot(ModProject project, int sprite)
+    {
+        var slot = int.Parse(project.Current(Jobs.FormationSprites2, sprite, "FormationSprite2"));
+        return slot < Jobs.SlotSprites.RecordCount && SlotSprite(project, slot) == sprite ? slot : null;
+    }
+
+    private static int SlotSprite(ModProject project, int slot) =>
+        int.Parse(project.Current(Jobs.SlotSprites, slot, "Sprite"));
 
     /// <summary>Puts the sprite's slot back as the game has it, and frees a slot it was lent.</summary>
     public static void RemoveFromParty(ModProject project, int sprite)

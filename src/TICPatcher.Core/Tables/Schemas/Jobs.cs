@@ -83,10 +83,22 @@ public static class Jobs
         Fields: [FieldDef.U8("FormationSprite", 0) with { LinksTo = "FormationSlotSprites" }],
         Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites1); located in TIC by FFTPatcher's PSX defaults") { RecordNames = Names.Jobs };
 
+    /// <summary>
+    /// Each unit sprite's slot in <see cref="SlotSprites"/>, which picks the sprite and face screens
+    /// show for it (e.g. Isilud 0x26 -> 0x89; slots up to 0x51 go through
+    /// <see cref="FormationSlotSprites"/> first in some screens). FFTPatcher calls it a job table, as
+    /// story jobs and sprites share ids. The game keeps six identical copies, each read by different
+    /// code; TIC Loader writes this table to five of them (see <see cref="Memory.GameBuilds"/>).
+    /// The sixth, read by the party setup, is <see cref="SpriteFormationSlots"/>, kept apart because
+    /// a recruit needs a low slot there.
+    /// </summary>
     public static readonly TableSchema FormationSprites2 = new(
-        "JobFormationSprites2", RecordSize: 2, RecordCount: 0x4A,
+        "JobFormationSprites2", RecordSize: 2, RecordCount: 0xD3,
         Fields: [FieldDef.U16("FormationSprite2", 0) with { LinksTo = "SlotSprites" }],
-        Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites2); found byte for byte in TIC") { RecordNames = Names.Jobs };
+        Source: "FFTPatcher Datatypes/Job/Job.cs (FormationSprites2); in TIC a 0xD3-entry sprite list, copies read at +0x2B56EA, +0x2C0853, +0x2DB41E and +0x32AC23")
+    {
+        RecordNames = Names.SpriteFiles,
+    };
 
     /// <summary>
     /// The sprite shown for each formation slot (a job's FormationSprite): 24 story-character
@@ -121,28 +133,6 @@ public static class Jobs
         "SpriteFormationSlots", RecordSize: 2, RecordCount: 0xD3,
         Fields: [FieldDef.U16("Slot", 0) with { LinksTo = "FormationSlotSprites" }],
         Source: "TIC's exe, read at +0x300F39 by the party screen (crash at +0x301451 for a slot of 0x3E or more)")
-    {
-        RecordNames = Names.SpriteFiles,
-    };
-
-    /// <summary>
-    /// The game keeps six copies of the sprite -> slot list (<see cref="FormationSprites2"/>,
-    /// <see cref="SpriteFormationSlots"/> and these four), each read by different code. Values
-    /// above 0x51 are looked up in <see cref="SlotSprites"/>, e.g. 0x80 = Wiegraf ch. 2/3. The copy
-    /// at +0x6807C0 seems to pick the unit's face on the party screen.
-    /// </summary>
-    public static readonly IReadOnlyList<TableSchema> SpriteSlotCopies =
-    [
-        SpriteSlotCopy("SpriteSlots2", "+0x2C0853, then the slot sprite function +0x274028 (party screen face)"),
-        SpriteSlotCopy("SpriteSlots3", "no direct reader found"),
-        SpriteSlotCopy("SpriteSlots4", "+0x2DB41E"),
-        SpriteSlotCopy("SpriteSlots5", "+0x32AC23"),
-    ];
-
-    private static TableSchema SpriteSlotCopy(string name, string readBy) => new(
-        name, RecordSize: 2, RecordCount: 0xD3,
-        Fields: [FieldDef.U16("Slot", 0) with { LinksTo = "SlotSprites" }],
-        Source: $"TIC's exe, a copy of the sprite -> slot list read at {readBy}")
     {
         RecordNames = Names.SpriteFiles,
     };

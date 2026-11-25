@@ -242,6 +242,14 @@ public sealed class TableEdits
                 ParseText(table.Value, edits);
                 continue;
             }
+            // Copies of the sprite list that were briefly tables of their own (TIC Patcher 0.7.3).
+            if (table.Name is "SpriteSlots2" or "SpriteSlots3" or "SpriteSlots4" or "SpriteSlots5")
+            {
+                foreach (var record in table.Value.EnumerateObject())
+                    if (ParseId(record.Name) is { } id && record.Value.TryGetProperty("Slot", out var slot) && slot.ValueKind == JsonValueKind.Number)
+                        edits.Set(Tables.Schemas.Jobs.FormationSprites2.Name, id, "FormationSprite2", slot.GetRawText());
+                continue;
+            }
             // A table from a newer TIC Patcher is left out, not the whole mod.
             if (!KnownTables.ContainsKey(table.Name))
             {
