@@ -32,6 +32,10 @@ public class ScanTests
         }
         Assert.Contains(address, found);
         Assert.True(biggest <= 64 << 20);
+        // Nothing in the scan's own buffer, which held the pattern a moment ago.
+        var buffer = (byte[])typeof(ProcessMemory).GetField("_scanBuffer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(ProcessMemory.Current)!;
+        var bufferAt = (long)System.Runtime.InteropServices.Marshal.UnsafeAddrOfPinnedArrayElement(buffer, 0);
+        Assert.DoesNotContain(found, a => a >= bufferAt && a < bufferAt + buffer.Length);
         GC.KeepAlive(holder);
     }
 }

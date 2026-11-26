@@ -86,6 +86,9 @@ public sealed class ProcessMemory(IntPtr handle)
     {
         const int Max = 64 << 20;
         var buffer = _scanBuffer ??= GC.AllocateUninitializedArray<byte>(Max, pinned: true);
+        // Scanning the current process, the buffer itself holds copies of what was just read:
+        // its region is skipped, or a search would find them.
+        var self = Handle == new IntPtr(-1) ? (long)Marshal.UnsafeAddrOfPinnedArrayElement(buffer, 0) : -1;
         long blockStart = 0;
         var used = 0;
         long address = from;
@@ -95,7 +98,8 @@ public sealed class ProcessMemory(IntPtr handle)
             long regionSize = (long)info.RegionSize;
             address = regionStart + regionSize;
             if (info.State != Native.MEM_COMMIT || (info.Protect & Native.PAGE_GUARD) != 0 || (info.Protect & Native.READABLE) == 0
-                || privateOnly && info.Type != Native.MEM_PRIVATE || (info.Protect & Native.UNCACHED) != 0 || regionSize > 1L << 30)
+                || privateOnly && info.Type != Native.MEM_PRIVATE || (info.Protect & Native.UNCACHED) != 0 || regionSize > 1L << 30
+                || self + Max > regionStart && self < regionStart + regionSize)
                 continue;
             for (long offset = 0; offset < regionSize;)
             {

@@ -253,9 +253,19 @@ public unsafe class Startup : IMod
                 }
                 if (at is { } found)
                 {
-                    var bytes = BattleMemory.Apply(memory, found, wanted);
-                    Log($"Battles: {bytes} byte(s) changed at 0x{found:X} (looked for {attempt.ElapsedMilliseconds} ms)");
-                    Tidy("battles");
+                    try
+                    {
+                        var bytes = BattleMemory.Apply(memory, found, wanted);
+                        Log($"Battles: {bytes} byte(s) changed at 0x{found:X} (looked for {attempt.ElapsedMilliseconds} ms)");
+                        Tidy("battles");
+                    }
+                    catch (System.ComponentModel.Win32Exception error)
+                    {
+                        // The place went away (or was never whole): look again rather than stop.
+                        Log($"Battles: couldn't write at 0x{found:X} ({error.Message}); looking again");
+                        at = null;
+                        Thread.Sleep(2000);
+                    }
                     waited.Restart();
                 }
                 else if (waited.Elapsed > TimeSpan.FromMinutes(3))
