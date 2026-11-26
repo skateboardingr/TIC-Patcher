@@ -53,12 +53,14 @@ public static class Errands
     /// filtered by copies of the same test in the unit-list code (+0x28510B, +0x2C0F3F, +0x2C221B),
     /// which TIC Loader changes too. Like FFTPatcher's PSX patch "Special characters can do
     /// propositions" (Razele), which changes the same kind of constant in two places.
+    /// Known side effect: the errand reports have no lines for Ramza (and possibly the story
+    /// characters), as the game never sends them, so their lines come out blank.
     /// </summary>
     public static readonly TableSchema Eligibility = new(
         "ErrandEligibility",
         RecordSize: 1,
         RecordCount: 1,
-        Fields: [FieldDef.U8("LowestSpriteSet", 0) with { Label = "Lowest sprite set that can go (0x4A: generic units only; 0x04: story characters too; 0x01: Ramza too)" }],
+        Fields: [FieldDef.U8("LowestSpriteSet", 0) with { Label = "Lowest sprite set that can go (0x4A: generic units only; 0x04: story characters too; 0x01: Ramza too, though his errand report lines are blank)" }],
         Source: "TIC's exe: the errand eligibility check at +0x2EE37C, its constant at +0x2EE3B3")
     {
         RecordName = _ => "Who can go on errands",
