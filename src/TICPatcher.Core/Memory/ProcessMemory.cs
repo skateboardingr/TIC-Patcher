@@ -165,7 +165,9 @@ public sealed class ProcessMemory(IntPtr handle)
     {
         var target = (IntPtr)address;
         var size = (IntPtr)bytes.Length;
-        if (!Native.VirtualProtectEx(Handle, target, size, Native.PAGE_READWRITE, out var oldProtect))
+        // Executable too, as the bytes may be code (e.g. a constant in an instruction): another
+        // thread running that page during the write must not fault.
+        if (!Native.VirtualProtectEx(Handle, target, size, Native.PAGE_EXECUTE_READWRITE, out var oldProtect))
             throw new Win32Exception(Marshal.GetLastWin32Error(), "VirtualProtectEx");
         try
         {
@@ -175,6 +177,7 @@ public sealed class ProcessMemory(IntPtr handle)
         finally
         {
             Native.VirtualProtectEx(Handle, target, size, oldProtect, out _);
+            Native.FlushInstructionCache(Handle, target, size);
         }
     }
 
@@ -243,6 +246,7 @@ public sealed class ProcessMemory(IntPtr handle)
         public const uint MEM_PRIVATE = 0x20000;
         public const uint PAGE_GUARD = 0x100;
         public const uint PAGE_READWRITE = 0x04;
+        public const uint PAGE_EXECUTE_READWRITE = 0x40;
         // PAGE_NOCACHE | PAGE_WRITECOMBINE
         public const uint UNCACHED = 0x200 | 0x400;
         // PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY
@@ -281,6 +285,9 @@ public sealed class ProcessMemory(IntPtr handle)
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr VirtualAllocEx(IntPtr process, IntPtr address, IntPtr size, uint type, uint protect);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool FlushInstructionCache(IntPtr process, IntPtr address, IntPtr size);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool VirtualProtectEx(IntPtr process, IntPtr address, IntPtr size, uint newProtect, out uint oldProtect);

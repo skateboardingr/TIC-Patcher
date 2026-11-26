@@ -42,4 +42,23 @@ public static class Errands
             FieldDef.U8("Prereq", 22),
         ],
         Source: "FFTPatcher Datatypes/Propositions/Proposition.cs") { RecordNames = Names.Errands };
+
+    /// <summary>
+    /// Who can go on errands: a unit whose sprite set is at least this (0x4A in the game, so
+    /// Ramza, 0x01-0x03, and the story characters, 0x04-0x49, stay home). 0x04 lets the story
+    /// characters go but not Ramza; 0x01 lets everyone go. It's the constant of the check at
+    /// +0x2EE3B1 (cmp edx, 4Ah) in the function the errand screen asks about each unit
+    /// (+0x2EE37C); the other conditions stay: not already on an errand, not a monster, and not
+    /// sprite set 0xA2 or 0xA3. Like FFTPatcher's PSX patch "Special characters can do
+    /// propositions" (Razele), which changes the same kind of constant.
+    /// </summary>
+    public static readonly TableSchema Eligibility = new(
+        "ErrandEligibility",
+        RecordSize: 1,
+        RecordCount: 1,
+        Fields: [FieldDef.U8("LowestSpriteSet", 0) with { Label = "Lowest sprite set that can go (0x4A: generic units only; 0x04: story characters too; 0x01: Ramza too)" }],
+        Source: "TIC's exe: the errand eligibility check at +0x2EE37C, its constant at +0x2EE3B3")
+    {
+        RecordName = _ => "Who can go on errands",
+    };
 }

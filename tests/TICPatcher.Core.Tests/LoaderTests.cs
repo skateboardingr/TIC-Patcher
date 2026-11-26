@@ -76,4 +76,14 @@ public class LoaderTests
         Assert.Equal(["Spells"], edits.UnknownTables);
         Assert.Equal("6", edits.Get("Jobs", 1, "Move"));
     }
+
+    [Fact]
+    public void ErrandEligibilityIsOneByteValue()
+    {
+        var edits = TableEdits.Parse("""{ "ErrandEligibility": { "0x00": { "LowestSpriteSet": 4 } } }""");
+        var bytes = new byte[] { 0x4A };
+        Assert.Equal(1, edits.ApplyTo(TICPatcher.Core.Tables.Schemas.Errands.Eligibility.Name, bytes, 1));
+        Assert.Equal(4, bytes[0]);
+        Assert.Equal(0x2EE3B3, TICPatcher.Core.Memory.GameBuilds.Known[0].Tables[TICPatcher.Core.Tables.Schemas.Errands.Eligibility.Name]);
+    }
 }
