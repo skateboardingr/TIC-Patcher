@@ -61,6 +61,9 @@ public static class GameBuilds
             Copies = new Dictionary<string, long[]>
             {
                 [Jobs.FormationSprites2.Name] = [0x6807C0, 0x680C00, 0x681A90, 0x683A70],
+                // The same "sprite set at least 0x4A" test in the unit lists errands use: the list
+                // builder's mode 0x0A filter and the shared unit-list picker (see Errands.Eligibility).
+                [Errands.Eligibility.Name] = [0x28510D, 0x2C0F41, 0x2C221D],
             },
         },
     ];

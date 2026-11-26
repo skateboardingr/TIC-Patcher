@@ -84,6 +84,6 @@ public class LoaderTests
         var bytes = new byte[] { 0x4A };
         Assert.Equal(1, edits.ApplyTo(TICPatcher.Core.Tables.Schemas.Errands.Eligibility.Name, bytes, 1));
         Assert.Equal(4, bytes[0]);
-        Assert.Equal(0x2EE3B3, TICPatcher.Core.Memory.GameBuilds.Known[0].Tables[TICPatcher.Core.Tables.Schemas.Errands.Eligibility.Name]);
+        Assert.Equal([0x2EE3B3, 0x28510D, 0x2C0F41, 0x2C221D], TICPatcher.Core.Memory.GameBuilds.Known[0].OffsetsOf(TICPatcher.Core.Tables.Schemas.Errands.Eligibility.Name).ToArray());
     }
 }

@@ -49,8 +49,10 @@ public static class Errands
     /// characters go but not Ramza; 0x01 lets everyone go. It's the constant of the check at
     /// +0x2EE3B1 (cmp edx, 4Ah) in the function the errand screen asks about each unit
     /// (+0x2EE37C); the other conditions stay: not already on an errand, not a monster, and not
-    /// sprite set 0xA2 or 0xA3. Like FFTPatcher's PSX patch "Special characters can do
-    /// propositions" (Razele), which changes the same kind of constant.
+    /// sprite set 0xA2 or 0xA3. That function only counts eligible units; the list itself is
+    /// filtered by copies of the same test in the unit-list code (+0x28510B, +0x2C0F3F, +0x2C221B),
+    /// which TIC Loader changes too. Like FFTPatcher's PSX patch "Special characters can do
+    /// propositions" (Razele), which changes the same kind of constant in two places.
     /// </summary>
     public static readonly TableSchema Eligibility = new(
         "ErrandEligibility",
