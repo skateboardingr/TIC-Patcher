@@ -72,7 +72,20 @@ public static class TextTables
         new("Name", 8),
     ], "Places") { Rows = 257, RowLength = 20 };
 
-    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters, SkillSets, Terrain, Places];
+    // Row N is errand N (the Errands table's record): its title, the tavern's description, and
+    // the report written when it ends, in several outcomes ("I ..." or "We ..." as units go alone or not).
+    public static readonly TextTable Errands = new("ErrandText", "profit.nxd", 0,
+    [
+        new("Name", 0),
+        new("Description", 4),
+        new("Report1", 8),
+        new("Report2", 12),
+        new("ReportTitle", 16),
+        new("Report3", 20),
+        new("Report4", 24),
+    ], Tables.Names.Errands) { Rows = 96, RowLength = 40 };
+
+    public static readonly IReadOnlyList<TextTable> List = [Items, Jobs, Abilities, Characters, SkillSets, Terrain, Places, Errands];
 
     /// <summary>The place-name row for a battle map.</summary>
     public static int PlaceOfMap(int map) => 10100 + 100 * map;
