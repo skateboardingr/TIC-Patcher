@@ -15,7 +15,7 @@ public static class AllTables
         Items.Extra, Items.ExtraWeapons, Items.ExtraArmor,
         Items.Attributes, Items.ShopInventories,
         Statuses.Attributes, Statuses.Inflict,
-        Errands.Schema, Errands.Eligibility,
+        Errands.Schema, Errands.Eligibility, Errands.Completion,
         Battles.Units,
         SpriteSheets.Palettes,
     ];

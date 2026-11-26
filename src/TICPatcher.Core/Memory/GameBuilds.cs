@@ -55,6 +55,7 @@ public static class GameBuilds
             [Items.Extra.Name] = 0x680510,
             [Errands.Schema.Name] = 0x7B768C,
             [Errands.Eligibility.Name] = 0x2EE3B3,
+            [Errands.Completion.Name] = 0x3700A9,
             [Items.ExtraArmor.Name] = 0x6732FC,
         })
         {

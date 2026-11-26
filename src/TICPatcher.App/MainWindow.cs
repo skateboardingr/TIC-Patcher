@@ -29,7 +29,7 @@ public sealed class MainWindow : Window
         ("Item Attributes", [Items.Attributes]),
         ("Shops", [Items.ShopInventories]),
         ("Statuses", [Statuses.Attributes, Statuses.Inflict]),
-        ("Errands", [Errands.Schema, Errands.Eligibility]),
+        ("Errands", [Errands.Schema, Errands.Eligibility, Errands.Completion]),
     ];
 
     private static readonly FilePickerFileType TablesJson = new("TIC mod tables") { Patterns = ["tables.json", "*.json"] };

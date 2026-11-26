@@ -65,4 +65,20 @@ public static class Errands
     {
         RecordName = _ => "Who can go on errands",
     };
+
+    /// <summary>
+    /// What a successful errand leaves in its status variable (0x360 + errand id): the game sets
+    /// bit 0x04, "completed", so the errand isn't offered again. 0 makes errands repeatable: the
+    /// errand only goes back to "not taken" (bit 0x02 is cleared either way). It's the constant of
+    /// "or edx, 4" at +0x3700A7 in the errand results code (+0x370054).
+    /// </summary>
+    public static readonly TableSchema Completion = new(
+        "ErrandCompletion",
+        RecordSize: 1,
+        RecordCount: 1,
+        Fields: [FieldDef.U8("CompletedFlag", 0) with { Label = "Flag set on a completed errand (4: done for good, as in the game; 0: repeatable)" }],
+        Source: "TIC's exe: the errand results code at +0x370054, its constant at +0x3700A9")
+    {
+        RecordName = _ => "Completed errands",
+    };
 }
