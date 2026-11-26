@@ -22,7 +22,14 @@ namespace TICPatcher.Loader;
 [SupportedOSPlatform("windows")]
 internal static unsafe class ReadWatcher
 {
-    public sealed record Config(string[] Tables, double Minutes = 10);
+    public sealed record Config(string[]? Tables = null, double Minutes = 10, Range[]? Ranges = null);
+
+    /// <summary>
+    /// Memory that isn't an editable table, e.g. the party roster: <c>{ "Name": "Roster", "Offset": "0x11A7D10",
+    /// "RecordSize": 600, "RecordCount": 54 }</c>, at a module offset. Code addresses are kept per byte
+    /// offset modulo 256, so in records bigger than that, offsets 256 apart share a line.
+    /// </summary>
+    public sealed record Range(string Name, string Offset, int RecordSize, int RecordCount);
 
     private const uint GuardPageViolation = 0x80000001;
     private const uint SingleStep = 0x80000004;
@@ -60,7 +67,13 @@ internal static unsafe class ReadWatcher
     public static void Start(Config config, IReadOnlyDictionary<string, long> offsets, long moduleStart, long moduleEnd, string reportPath, Action<string> log)
     {
         var tables = new List<Watched>();
-        foreach (var name in config.Tables)
+        foreach (var range in config.Ranges ?? [])
+        {
+            var at = Convert.ToInt64(range.Offset, 16);
+            var schema = new TableSchema(range.Name, range.RecordSize, range.RecordCount, [], "watch.json range");
+            tables.Add(new Watched(schema, moduleStart + at, moduleStart + at + (long)range.RecordSize * range.RecordCount));
+        }
+        foreach (var name in config.Tables ?? [])
         {
             if (!TICPatcher.Core.Mods.TableEdits.KnownTables.TryGetValue(name, out var schema) || !offsets.TryGetValue(name, out var offset))
             {
@@ -181,7 +194,7 @@ internal static unsafe class ReadWatcher
             Interlocked.Increment(ref _byOffset[t][offset]);
             Interlocked.Increment(ref _byRecord[t][(int)(offsetInTable / size)]);
 
-            var key = (instruction << 16) | ((long)t << 8) | (long)offset; // user-mode addresses fit in 48 bits
+            var key = (instruction << 16) | ((long)t << 8) | (long)(offset & 0xFF); // user-mode addresses fit in 48 bits
             var slot = (int)((ulong)(key * unchecked((long)0x9E3779B97F4A7C15)) >> 50);
             for (var probe = 0; probe < 64; probe++, slot = (slot + 1) & (Slots - 1))
             {
@@ -215,7 +228,7 @@ internal static unsafe class ReadWatcher
             {
                 var fields = schema.Fields.Where(f => offset >= f.Offset && offset < f.Offset + f.Size).Select(f => f.Name);
                 var code = Enumerable.Range(0, Slots)
-                    .Where(s => Keys[s] != 0 && (int)(((ulong)Keys[s] >> 8) & 0xFF) == t && (int)(Keys[s] & 0xFF) == offset)
+                    .Where(s => Keys[s] != 0 && (int)(((ulong)Keys[s] >> 8) & 0xFF) == t && (int)(Keys[s] & 0xFF) == (offset & 0xFF))
                     .OrderByDescending(s => Counts[s]).Take(6)
                     .Select(s => $"{Where((long)((ulong)Keys[s] >> 16))} x{Counts[s]}");
                 text.AppendLine($"  byte {offset,2} {string.Join("/", fields),-28} {_byOffset[t][offset],10}   {string.Join(", ", code)}");
