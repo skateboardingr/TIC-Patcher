@@ -56,7 +56,7 @@ public static class SkillSets
     public static readonly IReadOnlyList<string> RequirementJobs =
     [
         "Chemist", "Knight", "Archer", "Monk", "WhiteMage", "BlackMage", "TimeMage", "Summoner", "Thief", "Orator",
-        "Mystic", "Geomancer", "Dragoon", "Samurai", "Ninja", "Arithmetician", "Bard", "Dancer", "Mime", "DarkKnight", "OnionKnight", "Unknown",
+        "Mystic", "Geomancer", "Dragoon", "Samurai", "Ninja", "Arithmetician", "Bard", "Dancer", "Mime", "Job A0 (PSP Dark Knight)", "Job A1 (PSP Onion Knight)", "Unknown",
     ];
 
     private static readonly string[] RequirementFieldNames =
@@ -84,4 +84,21 @@ public static class SkillSets
         "JobLevels", RecordSize: 16, RecordCount: 1,
         Fields: Enumerable.Range(1, 8).Select(level => FieldDef.U16($"Level{level}", (level - 1) * 2)).ToList(),
         Source: "FFTPatcher Datatypes/Job/JobLevels.cs (levels)");
+
+    /// <summary>
+    /// How many JobRequirements records the game checks when it works out a unit's unlocked jobs
+    /// (the loop at +0x348684, 19: Chemist to Mime). 21 includes records 19 and 20, which unlock
+    /// generic jobs 20 and 21: job ids A0 and A1, the PSP's extra jobs, still mapped in TIC's code
+    /// (+0x2720B4) and in the 24-bit unlocked-jobs mask each unit saves (party record +0x2F).
+    /// Research: whether the job screens then offer them is being tested.
+    /// </summary>
+    public static readonly TableSchema JobUnlockCount = new(
+        "JobUnlockCount",
+        RecordSize: 1,
+        RecordCount: 1,
+        Fields: [FieldDef.U8("JobsChecked", 0) with { Label = "Requirement records checked (19: Chemist to Mime, as in the game; 21: also generic jobs A0 and A1)" }],
+        Source: "TIC's exe: the unlock loop at +0x348684, its count (mov r15d, 13h) at +0x3486FA")
+    {
+        RecordName = _ => "Jobs that can be unlocked",
+    };
 }
