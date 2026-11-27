@@ -116,4 +116,19 @@ public static class SkillSets
     {
         RecordName = _ => "Job A0 kill requirement",
     };
+
+    /// <summary>
+    /// The jobs whose every ability a unit must have learned before generic job A0 can unlock
+    /// (the PSP's Dark Knight: Knight 0x4C and Black Mage 0x50), checked after the kills
+    /// (<see cref="JobA0Kills"/>). Job 0x00 here has no abilities to learn, so it drops that part.
+    /// </summary>
+    public static readonly TableSchema JobA0Masteries = new(
+        "JobA0Masteries",
+        RecordSize: 4,
+        RecordCount: 2,
+        Fields: [FieldDef.U16("Job", 0) with { NameList = Names.Jobs, Label = "Job to master (0x00: none)" }],
+        Source: "TIC's exe: the list at +0x71EA38 read by the unlock routine (+0x348780)")
+    {
+        RecordName = id => $"Mastered job {id + 1}",
+    };
 }
