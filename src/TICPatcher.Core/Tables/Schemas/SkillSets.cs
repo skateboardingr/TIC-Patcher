@@ -131,4 +131,20 @@ public static class SkillSets
     {
         RecordName = id => $"Mastered job {id + 1}",
     };
+
+    /// <summary>
+    /// Jobs the secondary skill set list leaves out even when unlocked (besides the unit's own job
+    /// and Mime): the PSP's Onion Knight, A1, and its mastered form, A4, which had no skill set.
+    /// Each is the constant of a "mov ecx, job" in the list builder (+0x28A7C7), 10 bytes apart;
+    /// job 0x00 never appears in the list, so it lets that job's skill set show.
+    /// </summary>
+    public static readonly TableSchema NoSecondaryJobs = new(
+        "NoSecondaryJobs",
+        RecordSize: 10,
+        RecordCount: 2,
+        Fields: [FieldDef.U16("Job", 0) with { NameList = Names.Jobs, Label = "Job left out of the secondary list (0x00: none)" }],
+        Source: "TIC's exe: the secondary skill set list at +0x28A7C7, constants at +0x28A826 and +0x28A830")
+    {
+        RecordName = id => id == 0 ? "Left out (Onion Knight)" : "Left out (Onion Knight, mastered)",
+    };
 }

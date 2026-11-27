@@ -7,7 +7,7 @@ public static class AllTables
     [
         Jobs.Schema,
         Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots,
-        SkillSets.JobRequirements, SkillSets.JobUnlockCount, SkillSets.JobA0Kills, SkillSets.JobA0Masteries,
+        SkillSets.JobRequirements, SkillSets.JobUnlockCount, SkillSets.JobA0Kills, SkillSets.JobA0Masteries, SkillSets.NoSecondaryJobs,
         SkillSets.Main, SkillSets.Extra, SkillSets.MonsterSkills, SkillSets.ActionMenus,
         Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge,
         Abilities.Effects, Abilities.Animations,
