@@ -22,7 +22,11 @@ namespace TICPatcher.Loader;
 [SupportedOSPlatform("windows")]
 internal static unsafe class ReadWatcher
 {
-    public sealed record Config(string[]? Tables = null, double Minutes = 10, Range[]? Ranges = null);
+    public sealed record Config(string[]? Tables = null, double Minutes = 10, Range[]? Ranges = null, int[]? Records = null);
+
+    // With "Records" in watch.json, code addresses are kept only for reads of those record ids
+    // (the counts still cover every record), to see exactly which code reads them.
+    private static HashSet<int>? _records;
 
     /// <summary>
     /// Memory that isn't an editable table, e.g. the party roster: <c>{ "Name": "Roster", "Offset": "0x11A7D10",
@@ -85,6 +89,7 @@ internal static unsafe class ReadWatcher
         if (tables.Count == 0)
             return;
 
+        _records = config.Records is { Length: > 0 } records ? [.. records] : null;
         _moduleStart = moduleStart;
         _moduleEnd = moduleEnd;
         _tables = [.. tables];
@@ -193,6 +198,8 @@ internal static unsafe class ReadWatcher
             var offset = (int)(offsetInTable % size);
             Interlocked.Increment(ref _byOffset[t][offset]);
             Interlocked.Increment(ref _byRecord[t][(int)(offsetInTable / size)]);
+            if (_records is not null && !_records.Contains((int)(offsetInTable / size) + table.Schema.FirstId))
+                return;
 
             var key = (instruction << 16) | ((long)t << 8) | (long)(offset & 0xFF); // user-mode addresses fit in 48 bits
             var slot = (int)((ulong)(key * unchecked((long)0x9E3779B97F4A7C15)) >> 50);
@@ -234,9 +241,12 @@ internal static unsafe class ReadWatcher
                 text.AppendLine($"  byte {offset,2} {string.Join("/", fields),-28} {_byOffset[t][offset],10}   {string.Join(", ", code)}");
             }
             var busiest = Enumerable.Range(0, schema.RecordCount).Where(r => _byRecord[t][r] > 0)
-                .OrderByDescending(r => _byRecord[t][r]).Take(20)
+                .OrderByDescending(r => _byRecord[t][r])
                 .Select(r => $"{r + schema.FirstId:X2} {schema.NameOf(r + schema.FirstId)} x{_byRecord[t][r]}");
-            text.AppendLine($"  records read most: {string.Join("; ", busiest)}");
+            text.AppendLine($"  records read (most first): {string.Join("; ", busiest)}");
+            // And which code read each record, for the records read least (the ones a list may skip).
+            foreach (var r in Enumerable.Range(0, schema.RecordCount).Where(r => _byRecord[t][r] > 0 && _byRecord[t][r] < 50))
+                text.AppendLine($"    {r + schema.FirstId:X2} {schema.NameOf(r + schema.FirstId)}: x{_byRecord[t][r]}");
         }
         if (_dropped > 0)
             text.AppendLine($"(code-address table full; {_dropped} reads not attributed)");
