@@ -69,7 +69,7 @@ public unsafe class Startup : IMod
             var patcher = new LoadPatcher(original, BattleMemory.Wanted(original, edits), Battles.Units.RecordSize);
             if (!patcher.HasChanges)
                 return;
-            DecompressHook.Output = (address, size) =>
+            DecompressHook.Output += (address, size) =>
             {
                 var replaced = patcher.Patch(new Span<byte>((void*)address, size));
                 if (replaced > 0)
@@ -83,9 +83,132 @@ public unsafe class Startup : IMod
         }
     }
 
+    /// <summary>Folder in a mod holding replacement files: TIC/files/&lt;archive&gt;/&lt;path in it&gt;, e.g. TIC/files/0004/nxd/generaljob.nxd.</summary>
+    private const string FilesFolder = "TIC/files";
+
+    // Mods' replacement files for files packed in blocks: the same size is copied in as the block
+    // unpacks; another size goes in a buffer of its own and the game's archive entry is pointed at it.
+    private void ReplaceFilesOnLoad(List<(string Id, string Folder)> mods)
+    {
+        var wanted = new Dictionary<(string Archive, string Path), (string Mod, string File)>();
+        foreach (var (id, folder) in mods)
+        {
+            var root = Path.Combine(folder, FilesFolder);
+            if (!Directory.Exists(root))
+                continue;
+            foreach (var archiveFolder in Directory.GetDirectories(root))
+                foreach (var file in Directory.GetFiles(archiveFolder, "*", SearchOption.AllDirectories))
+                    wanted[(Path.GetFileName(archiveFolder), Path.GetRelativePath(archiveFolder, file).Replace('\\', '/'))] = (id, file); // later mods win
+        }
+        if (wanted.Count == 0)
+            return;
+        if (!DecompressHook.Installed)
+        {
+            Log($"files: {wanted.Count} replacement(s), but the game's unpacking isn't watched; not replaced");
+            return;
+        }
+        var gameFolder = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
+        var replacements = new List<TICPatcher.Core.Archives.BlockFileReplacement>();
+        using var codec = new TICPatcher.Core.Archives.GDeflate(gameFolder);
+        foreach (var group in wanted.GroupBy(w => w.Key.Archive))
+        {
+            var pac = Path.Combine(gameFolder, "data", "enhanced", group.Key + ".pac");
+            if (!File.Exists(pac))
+            {
+                Log($"files: no archive {group.Key}.pac; {group.Count()} file(s) skipped");
+                continue;
+            }
+            var archive = TICPatcher.Core.Archives.PacArchive.Open(pac);
+            foreach (var ((_, path), (mod, file)) in group)
+            {
+                if (archive.Find(path) is not { } entry)
+                {
+                    Log($"files: {mod}: {group.Key}/{path} isn't in the archive; skipped");
+                    continue;
+                }
+                if (archive.ReadBlock(entry, codec) is not { } block)
+                {
+                    Log($"files: {mod}: {group.Key}/{path} isn't packed in a block; replacing such files isn't supported yet");
+                    continue;
+                }
+                replacements.Add(new(group.Key, path, entry.Hash, block, entry.Offset, (int)entry.Size, File.ReadAllBytes(file)));
+                Log($"files: {mod}: {group.Key}/{path} will be replaced ({entry.Size} -> {new FileInfo(file).Length} bytes)");
+            }
+        }
+        if (replacements.Count == 0)
+            return;
+
+        // The game's archive entries for files that change size, found once (the game reads its
+        // archives' headers at start-up).
+        var memory = new ProcessMemory(new IntPtr(-1)); // its own scan buffer: other searches may run meanwhile
+        var entries = new System.Collections.Concurrent.ConcurrentDictionary<ulong, long[]>();
+        long[] FindEntries(TICPatcher.Core.Archives.BlockFileReplacement r)
+        {
+            if (entries.TryGetValue(r.Hash, out var known) && known.Length > 0)
+                return known;
+            var hash = BitConverter.GetBytes(r.Hash);
+            var found = new List<long>();
+            foreach (var (start, block) in memory.ScanBlocks(0, 0x7FFF_FFFF_FFFF, privateOnly: true))
+                for (var at = block.AsSpan().IndexOf(hash); at >= 0;)
+                {
+                    if (at >= 0x28 && r.IsEntry(block.AsSpan(at - 0x28, Math.Min(0x38, block.Count - at + 0x28))))
+                        found.Add(start + at - 0x28);
+                    var next = block.AsSpan(at + 1).IndexOf(hash);
+                    at = next < 0 ? -1 : at + 1 + next;
+                }
+            return entries[r.Hash] = [.. found];
+        }
+        var repointed = new HashSet<ulong>();
+        DecompressHook.Output += (address, size) =>
+        {
+            var piece = new Span<byte>((void*)address, size);
+            foreach (var r in replacements)
+            {
+                if (r.BlockStart(piece, address) is not { } blockStart)
+                    continue;
+                if (r.SameSize)
+                {
+                    if (r.PatchInPlace(piece, address, blockStart) > 0)
+                        Log($"files: {r.Archive}/{r.Path} replaced as the game unpacked it");
+                    continue;
+                }
+                lock (repointed)
+                {
+                    if (repointed.Contains(r.Hash))
+                        continue;
+                    var at = FindEntries(r);
+                    if (at.Length == 0)
+                    {
+                        Log($"files: {r.Archive}/{r.Path}: the game's archive entry wasn't found; not replaced");
+                        repointed.Add(r.Hash);
+                        continue;
+                    }
+                    // Kept for the game's lifetime: the game reads the file from here.
+                    var buffer = memory.Allocate(r.Replacement.Length);
+                    memory.Write(buffer, r.Replacement);
+                    foreach (var entry in at)
+                    {
+                        var bytes = memory.Read(entry, 0x38);
+                        TICPatcher.Core.Archives.BlockFileReplacement.Repoint(bytes, blockStart, buffer, r.Replacement.Length);
+                        memory.Write(entry, bytes);
+                    }
+                    repointed.Add(r.Hash);
+                    Log($"files: {r.Archive}/{r.Path} ({r.Replacement.Length} bytes) given to the game from 0x{buffer:X} ({at.Length} entry/entries pointed at it)");
+                }
+            }
+        };
+        // Find the entries early, off the game's loading thread, where possible.
+        new Thread(() =>
+        {
+            foreach (var r in replacements.Where(r => !r.SameSize))
+                for (var tries = 0; tries < 200 && FindEntries(r).Length == 0; tries++)
+                    Thread.Sleep(50);
+        }) { IsBackground = true, Name = "TIC Loader files" }.Start();
+    }
+
     private void OnAllModsLoaded()
     {
-        var mods = _modLoader.GetActiveMods().Select(m => m.Generic.ModId).Select(id => (id, _modLoader.GetDirectoryForModId(id)));
+        var mods = _modLoader.GetActiveMods().Select(m => m.Generic.ModId).Select(id => (id, _modLoader.GetDirectoryForModId(id))).ToList();
         var edits = _collector.Collect(mods, Log);
         ReadWatcher.Config? watch = null;
         try
@@ -99,6 +222,7 @@ public unsafe class Startup : IMod
         if (edits.IsEmpty)
             Log("no enabled mod has table edits");
         PatchBattlesOnLoad(edits);
+        ReplaceFilesOnLoad(mods);
         if (edits.IsEmpty && watch is null)
             return;
         // The game may still be unpacking its data; don't hold up startup.

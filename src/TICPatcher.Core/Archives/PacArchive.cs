@@ -111,6 +111,17 @@ public sealed class PacArchive
         return bytes;
     }
 
+    /// <summary>The whole block a file is packed in, decompressed (null for a file stored on its own).</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public byte[]? ReadBlock(PacEntry entry, GDeflate codec)
+    {
+        if (entry.Block == 0)
+            return null;
+        using var file = File.OpenRead(Path);
+        var block = _blocks[entry.Block];
+        return codec.Decompress(ReadAt(file, block.Offset, (int)block.CompressedSize), (int)block.Size);
+    }
+
     /// <summary>Several files, decompressing each shared block only once.</summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public Dictionary<PacEntry, byte[]> ReadMany(IEnumerable<PacEntry> entries, GDeflate codec)

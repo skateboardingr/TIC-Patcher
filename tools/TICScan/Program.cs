@@ -666,6 +666,15 @@ if (args.Length >= 2 && args[0] == "--find-file" && OperatingSystem.IsWindows())
     return 0;
 }
 
+// TICScan --find-hex <hex bytes>: where the running game holds those bytes (read-only), e.g. a hash.
+if (args.Length >= 2 && args[0] == "--find-hex" && OperatingSystem.IsWindows())
+{
+    var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
+    if (game is null)
+        return 1;
+    return Finder.Run(game, Convert.FromHexString(args[1]), false);
+}
+
 if (args.Length >= 2 && args[0] == "--find" && OperatingSystem.IsWindows())
 {
     var game = Process.GetProcessesByName("fft_enhanced").FirstOrDefault();
