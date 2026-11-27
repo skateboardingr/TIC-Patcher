@@ -101,4 +101,19 @@ public static class SkillSets
     {
         RecordName = _ => "Jobs that can be unlocked",
     };
+
+    /// <summary>
+    /// Kills a unit needs before generic job A0 (the PSP's Dark Knight) can unlock, on top of its
+    /// JobRequirements record: the unlock routine clears A0's bit below this (+0x348774, cmp r12d,
+    /// 14h; the count is party record +0x121, which TIC seems to leave at 0). 0 drops the rule.
+    /// </summary>
+    public static readonly TableSchema JobA0Kills = new(
+        "JobA0Kills",
+        RecordSize: 1,
+        RecordCount: 1,
+        Fields: [FieldDef.U8("KillsNeeded", 0) with { Label = "Kills needed for job A0 (20 as in the game; 0: none)" }],
+        Source: "TIC's exe: the unlock routine at +0x348684, its kill check's constant at +0x348777")
+    {
+        RecordName = _ => "Job A0 kill requirement",
+    };
 }

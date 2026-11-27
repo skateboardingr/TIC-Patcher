@@ -28,6 +28,7 @@ public static class GameBuilds
             [SkillSets.Extra.Name] = 0x67E210 + 0xB0 * 25,
             [SkillSets.JobRequirements.Name] = 0x67F390,
             [SkillSets.JobUnlockCount.Name] = 0x3486FA,
+            [SkillSets.JobA0Kills.Name] = 0x348777,
             [Jobs.FormationSprites1.Name] = 0x67F840,
             [Jobs.FormationSprites2.Name] = 0x680070,
             [Jobs.FormationSlotSprites.Name] = 0x714D50,
