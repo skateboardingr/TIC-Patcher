@@ -666,6 +666,18 @@ if (args.Length >= 2 && args[0] == "--find-file" && OperatingSystem.IsWindows())
     return 0;
 }
 
+// TICScan --generaljob <generaljob.nxd>: checks TIC Patcher rebuilds the job tree table byte for byte.
+if (args.Length >= 2 && args[0] == "--generaljob")
+{
+    var file = File.ReadAllBytes(args[1]);
+    var table = TICPatcher.Core.Text.GeneralJobTable.Parse(file);
+    var rebuilt = table.Build();
+    Console.WriteLine($"{table.Rows.Count} rows; rebuilt {(rebuilt.AsSpan().SequenceEqual(file) ? "identical" : "DIFFERENT")} ({rebuilt.Length} vs {file.Length} bytes)");
+    foreach (var row in table.Rows)
+        Console.WriteLine($"  row {row.Id}: {string.Join(", ", row.Prerequisites.Select(p => $"{p.Job}:{p.Level}"))}");
+    return 0;
+}
+
 // TICScan --find-hex <hex bytes>: where the running game holds those bytes (read-only), e.g. a hash.
 if (args.Length >= 2 && args[0] == "--find-hex" && OperatingSystem.IsWindows())
 {

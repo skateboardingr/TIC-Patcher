@@ -121,7 +121,8 @@ public unsafe class Startup : IMod
             var archive = TICPatcher.Core.Archives.PacArchive.Open(pac);
             foreach (var ((_, path), (mod, file)) in group)
             {
-                if (archive.Find(path) is not { } entry)
+                // The archives name their files without the folder the game asks for (nxd/x.nxd is x.nxd).
+                if ((archive.Find(path) ?? archive.Find(Path.GetFileName(path))) is not { } entry)
                 {
                     Log($"files: {mod}: {group.Key}/{path} isn't in the archive; skipped");
                     continue;
