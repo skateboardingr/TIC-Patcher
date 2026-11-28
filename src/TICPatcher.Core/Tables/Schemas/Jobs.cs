@@ -137,6 +137,27 @@ public static class Jobs
         RecordNames = Names.SpriteFiles,
     };
 
+    /// <summary>
+    /// The job tree: each generic job's direct prerequisites (up to 8 pairs of generic job number
+    /// and level) as the job tree screen shows them, from generaljob.nxd (0004.pac). Changing them
+    /// also changes <see cref="SkillSets.JobRequirements"/>, which decides unlocking (see
+    /// <see cref="Mods.JobTreeFile"/>), and puts the changed file in the mod.
+    /// </summary>
+    public static readonly TableSchema JobTree = new(
+        "JobTree", RecordSize: 16, RecordCount: 20,
+        Fields: [.. Enumerable.Range(1, 8).SelectMany(k => new[]
+        {
+            FieldDef.U8($"Job{k}", 2 * (k - 1)) with { NameList = Names.PrerequisiteJobs, Specials = NoJob, Label = $"Prerequisite {k}" },
+            FieldDef.U8($"Level{k}", 2 * (k - 1) + 1) with { Label = $"Level {k}" },
+        })],
+        Source: "generaljob.nxd (0004.pac), read and rebuilt byte for byte (Text.GeneralJobTable)")
+    {
+        InExecutable = false,
+        RecordName = id => Names.Get(Names.Jobs, 0x4A + id),
+    };
+
+    static IReadOnlyDictionary<int, string> NoJob => new Dictionary<int, string> { [0xFF] = "None" };
+
     // A property, as the tables above are built before a static field declared here would be.
     static IReadOnlyDictionary<int, string> NoSprite => new Dictionary<int, string> { [0xFFFF] = "None" };
 

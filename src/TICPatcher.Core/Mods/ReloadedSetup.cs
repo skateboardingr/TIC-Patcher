@@ -68,7 +68,8 @@ public sealed class ReloadedSetup
     /// Writes the mod into Reloaded-II's Mods folder: ModConfig.json (kept and
     /// updated if it exists) and TIC/tables.json. Returns the mod's folder.
     /// </summary>
-    public string Install(string modId, string name, string author, string description, string tablesJson)
+    public string Install(string modId, string name, string author, string description, string tablesJson,
+        IReadOnlyDictionary<string, byte[]>? files = null)
     {
         var folder = Path.Combine(ModsFolder, modId);
         Directory.CreateDirectory(Path.Combine(folder, "TIC"));
@@ -81,6 +82,18 @@ public sealed class ReloadedSetup
             config["ModDependencies"] = new JsonArray(LoaderModId);
         WriteAtomically(configPath, config.ToJsonString(Indented));
         WriteAtomically(Path.Combine(folder, ModCollector.TablesFile), tablesJson);
+        // Files given to the game in place of its own: written fresh, and ones the mod no longer
+        // changes removed (only files TIC Patcher makes: the job tree).
+        var jobTree = Path.Combine(folder, JobTreeFile.ModPath);
+        if (files?.ContainsKey(JobTreeFile.ModPath) != true && File.Exists(jobTree))
+            File.Delete(jobTree);
+        foreach (var (path, bytes) in files ?? new Dictionary<string, byte[]>())
+        {
+            var target = Path.Combine(folder, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.WriteAllBytes(target + ".tmp", bytes);
+            File.Move(target + ".tmp", target, overwrite: true);
+        }
         return folder;
     }
 

@@ -284,8 +284,9 @@ public unsafe class Startup : IMod
                 else if (build is not null && build.Tables.ContainsKey(table))
                     foreach (var offset in build.OffsetsOf(table))
                         ApplyTable(memory, schema, edits, moduleStart, offset);
-                else
+                else if (schema.InExecutable)
                     Log($"{table}: skipped, not located in this game version");
+                // (Tables kept in game files, e.g. the job tree, come with the mod's files.)
             }
             _api.RaiseTablesApplied(Log);
 

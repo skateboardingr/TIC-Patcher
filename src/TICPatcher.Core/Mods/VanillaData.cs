@@ -18,6 +18,9 @@ public sealed class VanillaData
     public required uint SizeOfImage { get; init; }
     public required Dictionary<string, byte[]> Tables { get; init; }
 
+    /// <summary>Game files kept whole, to rebuild with the mod's changes (archive/name → contents).</summary>
+    public Dictionary<string, byte[]> Files { get; init; } = [];
+
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TICPatcher");
 
@@ -76,6 +79,21 @@ public sealed class VanillaData
             if (entry is not null && sheets[entry].Length >= 0x200)
                 sheets[entry].AsSpan(0, 0x200).CopyTo(bytes.AsSpan((id - 1) * 0x200));
         Tables[SpriteSheets.Palettes.Name] = bytes;
+    }
+
+    /// <summary>
+    /// Adds the job tree (<see cref="Jobs.JobTree"/>) from the installed game's
+    /// data\enhanced\0004.pac generaljob.nxd, keeping the file to rebuild it (read-only).
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public void AddJobTree(string gameExe)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(gameExe))!;
+        var archive = Archives.PacArchive.Open(Path.Combine(folder, "data", "enhanced", "0004.pac"));
+        using var codec = new Archives.GDeflate(folder);
+        var file = archive.Read(archive.Find("generaljob.nxd") ?? throw new FormatException("generaljob.nxd isn't in 0004.pac"), codec);
+        Files[JobTreeFile.VanillaKey] = file;
+        Tables[Jobs.JobTree.Name] = JobTreeFile.Encode(Text.GeneralJobTable.Parse(file));
     }
 
     /// <summary>The original battles, from the installed game's data\enhanced\0002.pac.</summary>

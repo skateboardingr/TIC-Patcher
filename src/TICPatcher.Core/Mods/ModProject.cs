@@ -82,7 +82,52 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
             Edits.Remove(schema.Name, id, field);
         else
             Edits.Set(schema.Name, id, field, normal);
+        if (schema == Tables.Schemas.Jobs.JobTree)
+            SyncJobRequirements();
         Changed?.Invoke();
+    }
+
+    /// <summary>The table's bytes as the mod has them.</summary>
+    public byte[] CurrentTable(TableSchema schema)
+    {
+        var bytes = (byte[])Vanilla.Tables[schema.Name].Clone();
+        Edits.ApplyTo(schema.Name, bytes, schema.RecordSize);
+        return bytes;
+    }
+
+    // JobRequirements (what unlocks jobs) follows the job tree: each job needs its prerequisites'
+    // requirements too, as the game shipped it. Record N is generic job N + 1 (Chemist first).
+    private void SyncJobRequirements()
+    {
+        if (!HasTable(Tables.Schemas.Jobs.JobTree.Name) || !HasTable(Tables.Schemas.SkillSets.JobRequirements.Name))
+            return;
+        var requirements = Tables.Schemas.SkillSets.JobRequirements;
+        var levels = JobTreeFile.Cumulative(JobTreeFile.Prerequisites(CurrentTable(Tables.Schemas.Jobs.JobTree)));
+        for (var job = 1; job < levels.Length && job - 1 < requirements.RecordCount; job++)
+            for (var other = 0; other < requirements.Fields.Count && other < levels[job].Length; other++)
+            {
+                var field = requirements.Fields[other].Name;
+                var wanted = Math.Min(levels[job][other], 15).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (Current(requirements, job - 1, field) == wanted)
+                    continue;
+                if (wanted == Original(requirements, job - 1, field))
+                    Edits.Remove(requirements.Name, job - 1, field);
+                else
+                    Edits.Set(requirements.Name, job - 1, field, wanted);
+            }
+    }
+
+    /// <summary>
+    /// Files the mod hands the game in place of its own (path in the mod → contents): the job tree
+    /// when its prerequisites change.
+    /// </summary>
+    public IReadOnlyDictionary<string, byte[]> ModFiles()
+    {
+        var files = new Dictionary<string, byte[]>();
+        if (Edits.ChangedTables.Contains(Tables.Schemas.Jobs.JobTree.Name)
+            && Vanilla.Files.TryGetValue(JobTreeFile.VanillaKey, out var original))
+            files[JobTreeFile.ModPath] = JobTreeFile.Build(original, CurrentTable(Tables.Schemas.Jobs.JobTree));
+        return files;
     }
 
     public void Revert(TableSchema schema, int id)
@@ -93,6 +138,8 @@ public sealed class ModProject(VanillaData vanilla, TableEdits? edits = null)
         if (TextFor(schema) is { } text)
             foreach (var (_, _, field, _) in Edits.AllText.Where(e => e.Table == text.Name && e.Record == id).ToList())
                 Edits.RemoveText(text.Name, id, field);
+        if (schema == Tables.Schemas.Jobs.JobTree)
+            SyncJobRequirements();
         Changed?.Invoke();
     }
 

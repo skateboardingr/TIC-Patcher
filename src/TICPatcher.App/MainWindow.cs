@@ -21,7 +21,7 @@ public sealed class MainWindow : Window
 {
     private static readonly (string Tab, TableSchema[] Tables)[] Groups =
     [
-        ("Jobs", [Jobs.Schema, SkillSets.JobRequirements, SkillSets.JobUnlockCount, SkillSets.JobA0Kills, SkillSets.JobA0Masteries, SkillSets.NoSecondaryJobs, Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots]),
+        ("Jobs", [Jobs.Schema, Jobs.JobTree, SkillSets.JobRequirements, SkillSets.JobUnlockCount, SkillSets.JobA0Kills, SkillSets.JobA0Masteries, SkillSets.NoSecondaryJobs, Jobs.FormationSprites1, Jobs.FormationSprites2, Jobs.FormationSlotSprites, Jobs.SlotSprites, Jobs.SpriteFormationSlots]),
         ("Skill Sets", [SkillSets.Main, SkillSets.Extra, SkillSets.ActionMenus]),
         ("Monster Skills", [SkillSets.MonsterSkills]),
         ("Abilities", [Abilities.Common, Abilities.Action, Abilities.Throw, Abilities.Jump, Abilities.Charge, Abilities.Effects, Abilities.Animations]),
@@ -144,6 +144,7 @@ public sealed class MainWindow : Window
                 {
                     vanilla.AddBattles(exe);
                     vanilla.AddSpritePalettes(exe);
+                    vanilla.AddJobTree(exe);
                 }
                 catch (Exception error) when (error is IOException or FormatException or InvalidOperationException
                     or System.Runtime.InteropServices.COMException or DllNotFoundException or EntryPointNotFoundException)
@@ -659,7 +660,7 @@ public sealed class MainWindow : Window
     private string InstallCurrent(ReloadedSetup reloaded)
     {
         var id = _modId ?? ReloadedSetup.IdFor(ModName);
-        var folder = reloaded.Install(id, ModName, Environment.UserName, "Made with TIC Patcher.", _project!.Edits.ToJson());
+        var folder = reloaded.Install(id, ModName, Environment.UserName, "Made with TIC Patcher.", _project!.Edits.ToJson(), _project.ModFiles());
         _modId = id;
         _path = Path.Combine(folder, ModCollector.TablesFile);
         _mods?.Fill();
